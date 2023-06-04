@@ -6,3 +6,5 @@ __pycache__
 test.py
 assets/test.html
 saves
+build
+dist
