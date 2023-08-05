@@ -25,6 +25,15 @@ _BASE_OPTION_SETS = [
     "iyoloxap",
     "iyoloneutral",
     "gencontentv3",
+    "fluxsrtrunc",
+    "fluxtrunc",
+    "fluxv1",
+    "rai278",
+    "replaceurl",
+    "savemem",
+    "savememfilter",
+    "rcdirallowlist",
+    "hlthfood",
     "nojbfedge",
 ]
 
