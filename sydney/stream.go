@@ -3,10 +3,13 @@ package sydney
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
+	"github.com/samber/lo"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
+	"regexp"
+	"strconv"
 	"strings"
 	"sydneyqt/util"
 	"time"
@@ -37,6 +40,7 @@ func (o *Sydney) AskStream(options AskStreamOptions) <-chan Message {
 				}
 			}
 		}
+		var sourceAttributes []SourceAttribute
 		for msg := range ch {
 			if msg.Error != nil {
 				slog.Error("Ask stream message", "error", msg.Error)
@@ -57,16 +61,12 @@ func (o *Sydney) AskStream(options AskStreamOptions) <-chan Message {
 				case "InternalSearchQuery":
 					out <- Message{
 						Type: MessageTypeSearchQuery,
-						Text: messageHiddenText,
+						Text: messageText,
 					}
 				case "InternalSearchResult":
-					var links []string
 					if strings.Contains(messageHiddenText,
 						"Web search returned no relevant result") {
-						out <- Message{
-							Type: MessageTypeSearchResult,
-							Text: messageHiddenText,
-						}
+						slog.Info("Web search returned no relevant result")
 						continue
 					}
 					if !gjson.Valid(messageText) {
@@ -75,19 +75,15 @@ func (o *Sydney) AskStream(options AskStreamOptions) <-chan Message {
 					}
 					arr := gjson.Parse(messageText).Array()
 					for _, group := range arr {
-						srIndex := 1
 						group.ForEach(func(key, value gjson.Result) bool {
 							for _, subGroup := range value.Array() {
-								links = append(links, fmt.Sprintf("[^%d^][%s](%s)",
-									srIndex, subGroup.Get("title").String(), subGroup.Get("url").String()))
-								srIndex++
+								sourceAttributes = append(sourceAttributes, SourceAttribute{
+									Link:  subGroup.Get("url").String(),
+									Title: subGroup.Get("title").String(),
+								})
 							}
 							return true
 						})
-					}
-					out <- Message{
-						Type: MessageTypeSearchResult,
-						Text: strings.Join(links, "\n\n"),
 					}
 				case "InternalLoaderMessage":
 					if message.Get("hiddenText").Exists() {
@@ -130,6 +126,42 @@ func (o *Sydney) AskStream(options AskStreamOptions) <-chan Message {
 				case "":
 					if data.Get("arguments.0.cursor").Exists() {
 						wrote = 0
+						// extract search result from text block
+						if text := strings.TrimSuffix(message.Get("adaptiveCards.0.body.0.text").String(),
+							messageText); strings.TrimSpace(text) != "" {
+							arr := lo.Filter(lo.Map(strings.Split(text, "\n"), func(item string, index int) string {
+								return strings.Trim(item, " \"")
+							}), func(item string, index int) bool {
+								return item != ""
+							})
+							re := regexp.MustCompile(`\[(\d+)]: (.*)`)
+							var resultSources []SourceAttribute
+							for _, line := range arr {
+								matches := re.FindStringSubmatch(line)
+								if len(matches) == 0 {
+									continue
+								}
+								ix := matches[1]
+								link := matches[2]
+								sourceAttribute, ok := lo.Find(sourceAttributes, func(item SourceAttribute) bool {
+									return item.Link == link
+								})
+								if !ok {
+									continue
+								}
+								sourceAttribute.Index, _ = strconv.Atoi(ix)
+								resultSources = append(resultSources, sourceAttribute)
+							}
+							var resultArr []string
+							for _, src := range resultSources {
+								v, _ := json.Marshal(&src)
+								resultArr = append(resultArr, "  "+string(v))
+							}
+							out <- Message{
+								Type: MessageTypeSearchResult,
+								Text: "[\n" + strings.Join(resultArr, ",\n") + "\n]",
+							}
+						}
 					}
 					if message.Get("contentOrigin").String() == "Apology" {
 						if wrote != 0 {
@@ -244,6 +276,13 @@ func (o *Sydney) AskStreamRaw(options AskStreamOptions) <-chan RawMessage {
 		optionsSets := o.optionsSetMap[o.conversationStyle]
 		if o.noSearch {
 			optionsSets = append(optionsSets, "nosearchall")
+		}
+		debugOptionsSetsFile, _ := os.ReadFile("debug_options_sets.json")
+		var debugOptionsSets []string
+		_ = json.Unmarshal(debugOptionsSetsFile, &debugOptionsSets)
+		if len(debugOptionsSets) != 0 {
+			slog.Warn("Enable debug options sets", "v", debugOptionsSets)
+			optionsSets = debugOptionsSets
 		}
 		chatMessage := ChatMessage{
 			Arguments: []Argument{

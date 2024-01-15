@@ -7,3 +7,4 @@ frontend/dist
 /test
 debug.bat
 config.lock
+debug_options_sets.json
