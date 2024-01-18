@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {computed, onUpdated} from "vue"
-import {toChatMessages, unescapeHtml} from "../../helper"
+import {ChatMessage, toChatMessages, unescapeHtml} from "../../helper"
 import {marked} from "marked"
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
@@ -61,7 +61,7 @@ function renderMD(content: string) {
   const original_link = renderer.link
   renderer.link = function (href, title, text) {
     if (href === text) {
-      return '&lt;' + href + '&gt;'
+      return href
     }
     return original_link(href, title, text)
   }
@@ -75,6 +75,50 @@ function renderMD(content: string) {
     console.log(e)
   }
   return rendered_md_only
+}
+
+interface SourceAttribute {
+  index: number,
+  link: string,
+  title: string,
+}
+
+function renderMessage(message: ChatMessage): string {
+  let content = message.message
+  if (message.type === 'search_result') {
+    try {
+      let sourceAttributes: SourceAttribute[] = JSON.parse(message.message)
+      return renderMD(sourceAttributes.map(v => '\\[' + v.index + '] [' + v.title + '](' + v.link + ')').join('<br>\n'))
+    } catch (e) {
+      console.log(e)
+      return message.message
+    }
+  }
+  if (message.type === 'message' && message.role === 'assistant') {
+    let searchResult = findNearestSearchResult(message)
+    if (searchResult) {
+      try {
+        let sourceAttributes: SourceAttribute[] = JSON.parse(searchResult.message)
+        for (let src of sourceAttributes) {
+          content = content.replaceAll('[^' + src.index + '^]',
+              '[[' + src.index + ']](' + src.link + ')')
+          content = content.replaceAll('(^' + src.index + '^)',
+              '(' + src.link + ')')
+        }
+      } catch (e) {
+        console.log(e)
+      }
+    }
+  }
+  return renderMD(content)
+}
+
+function findNearestSearchResult(message: ChatMessage): ChatMessage | null {
+  let searchResultMessage = chatMessages.value?.[chatMessages.value.findIndex(v => v === message) - 1]
+  if (!searchResultMessage || searchResultMessage.role !== 'assistant' || searchResultMessage.type !== 'search_result') {
+    return null
+  }
+  return searchResultMessage
 }
 
 onUpdated(() => {
@@ -97,7 +141,7 @@ onUpdated(() => {
         <p class="ml-3" style="text-transform: uppercase!important;">{{ message.role }}</p>
         <p class="ml-3 text-caption" style="color: #999">{{ message.type }}</p>
       </div>
-      <div v-html="renderMD(message.message)" class="my-1"></div>
+      <div v-html="renderMessage(message)" class="my-1"></div>
       <v-divider class="my-3" v-if="index!==chatMessages.length-1"></v-divider>
     </div>
   </div>
@@ -110,7 +154,7 @@ onUpdated(() => {
   box-sizing: border-box;
 }
 
-pre {
+#my-box pre {
   position: relative;
   overflow: auto;
   margin: 5px 0;
@@ -120,7 +164,7 @@ pre {
   color: white;
 }
 
-pre button {
+#my-box pre button {
   position: absolute;
   top: 5px;
   right: 5px;
@@ -133,26 +177,30 @@ pre button {
   text-shadow: #e8e8e8 0 0 2px;
 }
 
-pre button:hover {
+#my-box pre button:hover {
   cursor: pointer;
   background-color: #bcbabb;
 }
 
-table {
+#my-box table {
   border-collapse: collapse;
 }
 
-th, td {
+#my-box th, #my-box td {
   border: 1px solid black;
   padding: 8px;
 }
 
-li {
+#my-box li {
   margin-left: 20px;
 }
 
-p, table, li, code {
+#my-box p, table, li, code {
   cursor: text;
+}
+
+#my-box a {
+  text-decoration: none;
 }
 
 </style>

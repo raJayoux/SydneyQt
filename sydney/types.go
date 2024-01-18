@@ -153,3 +153,8 @@ type GenerateImageResult struct {
 	ImageURLs []string      `json:"image_urls"`
 	Duration  time.Duration `json:"duration"`
 }
+type SourceAttribute struct {
+	Index int    `json:"index"`
+	Link  string `json:"link"`
+	Title string `json:"title"`
+}

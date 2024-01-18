@@ -1,11 +1,12 @@
 package sydney
 
 import (
-	"github.com/google/uuid"
-	"github.com/huandu/go-clone/generic"
 	"log/slog"
 	"strconv"
 	"sydneyqt/util"
+
+	"github.com/google/uuid"
+	clone "github.com/huandu/go-clone/generic"
 )
 
 type Sydney struct {
@@ -31,21 +32,19 @@ func NewSydney(options Options) *Sydney {
 	debugOptions.Cookies = nil
 	slog.Info("New Sydney", "v", debugOptions)
 	basicOptionsSet := []string{
-		"nlu_direct_response_filter",
-		"deepleo",
-		"disable_emoji_spoken_text",
-		"responsible_ai_policy_235",
-		"enablemm",
-		"iycapbing",
+		"flux_365_copilot",
+		"deepleo_harmony_365_copilot",
 		"iyxapbing",
-		"dv3sugg",
-		"iyoloxap",
-		"iyoloneutral",
-		"gencontentv3",
+		"iycapbing",
+		"dgencontentv3",
+		"nointernalsugg",
 		"nojbf",
+		"disable_telemetry",
+		"machine_affinity",
+		"streamf",
 	}
 	if options.GPT4Turbo {
-		basicOptionsSet = append(basicOptionsSet, "dlgpt4t")
+		basicOptionsSet = append(basicOptionsSet, "dlgpt4t", "fluxsydney")
 	}
 	uuidObj, err := uuid.NewUUID()
 	if err != nil {
@@ -64,33 +63,11 @@ func NewSydney(options Options) *Sydney {
 		createConversationURL: util.Ternary(options.CreateConversationURL == "",
 			"https://edgeservices.bing.com/edgesvc/turing/conversation/create", options.CreateConversationURL),
 		optionsSetMap: map[string][]string{
-			"Creative": append(basicOptionsSet, "h3imaginative"),
+			"Creative": append(basicOptionsSet, "soedgeca"),
 			"Balanced": append(basicOptionsSet, "galileo"),
 			"Precise":  append(basicOptionsSet, "h3precise"),
 		},
-		sliceIDs: []string{
-			"winmuid1tf",
-			"newmma-prod",
-			"imgchatgptv2",
-			"tts2",
-			"voicelang2",
-			"anssupfotest",
-			"emptyoson",
-			"tempcacheread",
-			"temptacache",
-			"ctrlworkpay",
-			"winlongmsg2tf",
-			"628fabocs0",
-			"531rai268s0",
-			"602refusal",
-			"621alllocs0",
-			"621docxfmtho",
-			"621preclsvn",
-			"330uaug",
-			"529rweas0",
-			"0626snptrcs0",
-			"619dagslnv1nr",
-		},
+		sliceIDs: []string{},
 		locationHints: map[string][]LocationHint{
 			"zh-CN": {
 				{
