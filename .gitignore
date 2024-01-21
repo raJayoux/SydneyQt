@@ -8,3 +8,4 @@ frontend/dist
 debug.bat
 config.lock
 debug_options_sets.json
+build/bin/config.json
