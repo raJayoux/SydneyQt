@@ -303,11 +303,11 @@ func (o *Sydney) AskStreamRaw(options AskStreamOptions) <-chan RawMessage {
 			Arguments: []Argument{
 				{
 					OptionsSets:         optionsSets,
-					Source:              "edge_coauthor_prod",
+					Source:              "cib-ccp",
 					AllowedMessageTypes: o.allowedMessageTypes,
 					SliceIds:            o.sliceIDs,
 					Verbosity:           "verbose",
-					Scenario:            "Underside",
+					Scenario:            "SERP",
 					TraceId:             util.MustGenerateRandomHex(16),
 					RequestId:           messageID.String(),
 					IsStartOfSession:    true,
@@ -319,7 +319,7 @@ func (o *Sydney) AskStreamRaw(options AskStreamOptions) <-chan RawMessage {
 						Author:        "user",
 						InputMethod:   "Keyboard",
 						Text:          options.Prompt,
-						MessageType:   []string{"Chat", "SearchQuery", "CurrentWebpageContextRequest"}[util.RandIntInclusive(0, 2)],
+						MessageType:   []string{"Chat", "CurrentWebpageContextRequest"}[util.RandIntInclusive(0, 1)],
 						RequestId:     messageID.String(),
 						MessageId:     messageID.String(),
 						ImageUrl:      util.Ternary[any](options.ImageURL == "", nil, options.ImageURL),

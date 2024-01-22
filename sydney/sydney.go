@@ -1,6 +1,7 @@
 package sydney
 
 import (
+	"github.com/samber/lo"
 	"log/slog"
 	"strconv"
 	"sydneyqt/util"
@@ -31,6 +32,11 @@ func NewSydney(options Options) *Sydney {
 	debugOptions := clone.Clone(options)
 	debugOptions.Cookies = nil
 	slog.Info("New Sydney", "v", debugOptions)
+
+	uuidObj, err := uuid.NewUUID()
+	if err != nil {
+		util.GracefulPanic(err)
+	}
 	basicOptionsSet := []string{
 		"fluxcopilot",
 		"nojbf",
@@ -42,20 +48,23 @@ func NewSydney(options Options) *Sydney {
 		"machine_affinity",
 		"streamf",
 		"codeint",
-	}
-	if options.GPT4Turbo {
-		basicOptionsSet = append(basicOptionsSet, "dlgpt4t", "gpt4tmnc")
-	}
-	uuidObj, err := uuid.NewUUID()
-	if err != nil {
-		util.GracefulPanic(err)
+		"langdtwb",
+		"fdwtlst",
+		"fluxprod",
+		"eredirecturl",
+		"deuct3",
 	}
 	forwardedIP := "1.0.0." + strconv.Itoa(util.RandIntInclusive(1, 255))
 	cookies := util.Ternary(options.Cookies == nil, map[string]string{}, options.Cookies)
+	options.ConversationStyle = lo.Ternary(options.ConversationStyle == "",
+		"Creative", options.ConversationStyle)
+	if options.ConversationStyle == "Creative" && !options.GPT4Turbo {
+		options.ConversationStyle = "CreativeClassic"
+	}
 	return &Sydney{
 		debug:             options.Debug,
 		proxy:             options.Proxy,
-		conversationStyle: util.Ternary(options.ConversationStyle == "", "Creative", options.ConversationStyle),
+		conversationStyle: options.ConversationStyle,
 		locale:            util.Ternary(options.Locale == "", "en-US", options.Locale),
 		wssURL: util.Ternary(options.WssDomain == "", "wss://sydney.bing.com/sydney/ChatHub",
 			"wss://"+options.WssDomain+"/sydney/ChatHub"),
@@ -63,9 +72,10 @@ func NewSydney(options Options) *Sydney {
 		createConversationURL: util.Ternary(options.CreateConversationURL == "",
 			"https://edgeservices.bing.com/edgesvc/turing/conversation/create", options.CreateConversationURL),
 		optionsSetMap: map[string][]string{
-			"Creative": append(basicOptionsSet, "h3imaginative"),
-			"Balanced": append(basicOptionsSet, "galileo"),
-			"Precise":  append(basicOptionsSet, "h3precise"),
+			"Balanced":        append(basicOptionsSet, "galileo"),
+			"Precise":         append(basicOptionsSet, "h3precise"),
+			"Creative":        basicOptionsSet,
+			"CreativeClassic": basicOptionsSet,
 		},
 		sliceIDs: []string{},
 		locationHints: map[string][]LocationHint{
