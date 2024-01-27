@@ -174,9 +174,11 @@ func (o *Sydney) AskStream(options AskStreamOptions) <-chan Message {
 								v, _ := json.Marshal(&src)
 								resultArr = append(resultArr, "  "+string(v))
 							}
-							out <- Message{
-								Type: MessageTypeSearchResult,
-								Text: "[\n" + strings.Join(resultArr, ",\n") + "\n]",
+							if len(resultArr) != 0 {
+								out <- Message{
+									Type: MessageTypeSearchResult,
+									Text: "[\n" + strings.Join(resultArr, ",\n") + "\n]",
+								}
 							}
 						}
 					}
@@ -336,6 +338,7 @@ func (o *Sydney) AskStreamRaw(options AskStreamOptions) <-chan RawMessage {
 							MessageType: "Context",
 						},
 					},
+					GptId: "copilot",
 				},
 			},
 			InvocationId: "0",
