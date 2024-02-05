@@ -4,12 +4,14 @@
 
 ![Static Badge](https://img.shields.io/badge/project-SydneyQt-blue) ![GitHub release (with filter)](https://img.shields.io/github/v/release/juzeon/SydneyQt) ![GitHub all releases](https://img.shields.io/github/downloads/juzeon/SydneyQt/total) ![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/juzeon/SydneyQt/wails.yml) ![GitHub License](https://img.shields.io/github/license/juzeon/SydneyQt)
 
+[![SydneyQt - A desktop client for the jailbroken New Bing AI | Product Hunt](https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=438079&theme=light)](https://www.producthunt.com/posts/sydneyqt?utm_source=badge-featured&utm_medium=badge&utm_souce=badge-sydneyqt)
 
 一个使用Go和[Wails](https://github.com/wailsapp/wails)构建的跨平台桌面客户端（[之前](https://github.com/juzeon/SydneyQt/tree/v1)基于Python和Qt），用于越狱新版Bing AI（Sydney版）。
 
 ## 特点
 
 - 通过参数调整和提示注入越狱新版Bing。
+- 提前使用灰度测试中的功能。
 - 使用代理和Cloudflare Workers解锁地区限制。
 - 自由编辑聊天上下文，包括AI的之前的回复。
 - 阻止Bing AI撤回消息，并自动发送自定义文本继续生成。
@@ -47,6 +49,8 @@
    - 把你的cookies粘贴到一个名为`cookies.json`的文件中，创建在可执行文件的同一个目录下。
    - **注意：在导出cookie之前，确保你可以使用网页聊天。**
 2. 运行程序。
+
+**(新) 试试[我们的新浏览器扩展](https://github.com/juzeon/SydneyQt-browser-extension)，它具有自动解决验证码、导出cookie等功能！**
 
 请按照下一节的说明解决常见问题。
 

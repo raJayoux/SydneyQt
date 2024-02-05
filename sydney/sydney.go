@@ -58,9 +58,10 @@ func NewSydney(options Options) *Sydney {
 	cookies := util.Ternary(options.Cookies == nil, map[string]string{}, options.Cookies)
 	options.ConversationStyle = lo.Ternary(options.ConversationStyle == "",
 		"Creative", options.ConversationStyle)
-	if options.ConversationStyle == "Creative" && !options.GPT4Turbo {
-		options.ConversationStyle = "CreativeClassic"
-	}
+	// TODO find ways to enable turbo for non-pro users
+	//if options.ConversationStyle == "Creative" && !options.GPT4Turbo {
+	//	options.ConversationStyle = "CreativeClassic"
+	//}
 	return &Sydney{
 		debug:             options.Debug,
 		proxy:             options.Proxy,
@@ -72,7 +73,7 @@ func NewSydney(options Options) *Sydney {
 		createConversationURL: util.Ternary(options.CreateConversationURL == "",
 			"https://edgeservices.bing.com/edgesvc/turing/conversation/create", options.CreateConversationURL),
 		optionsSetMap: map[string][]string{
-			"Balanced":        append(basicOptionsSet, "galileo"),
+			"Balanced":        append(basicOptionsSet, "galileo", "gldcl1p"),
 			"Precise":         append(basicOptionsSet, "h3precise"),
 			"Creative":        basicOptionsSet,
 			"CreativeClassic": basicOptionsSet,
@@ -120,6 +121,7 @@ func NewSydney(options Options) *Sydney {
 			"Progress",
 			"GenerateContentQuery",
 			"SearchQuery",
+			"GeneratedCode",
 		},
 		headers: map[string]string{
 			"accept":                      "application/json",

@@ -4,6 +4,8 @@
 
 ![Static Badge](https://img.shields.io/badge/project-SydneyQt-blue) ![GitHub release (with filter)](https://img.shields.io/github/v/release/juzeon/SydneyQt) ![GitHub all releases](https://img.shields.io/github/downloads/juzeon/SydneyQt/total) ![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/juzeon/SydneyQt/wails.yml) ![GitHub License](https://img.shields.io/github/license/juzeon/SydneyQt)
 
+[![SydneyQt - A desktop client for the jailbroken New Bing AI | Product Hunt](https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=438079&theme=light)](https://www.producthunt.com/posts/sydneyqt?utm_source=badge-featured&utm_medium=badge&utm_souce=badge-sydneyqt)
+
 A cross-platform desktop client for the jailbroken New Bing AI (Sydney ver.) built with Go and [Wails](https://github.com/wailsapp/wails) ([previously](https://github.com/juzeon/SydneyQt/tree/v1) based on Python and Qt).
 
 [简体中文](README_zh.md)
@@ -11,6 +13,7 @@ A cross-platform desktop client for the jailbroken New Bing AI (Sydney ver.) bui
 ## Features
 
 - Jailbreak New Bing with parameter tweaks and prompt injection.
+- Access features in the gray-scale test in advance.
 - Region restriction unlocking with proxy and Cloudflare Workers.
 - Edit the chat context freely, including the AI's previous responses.
 - Prevent Bing AI's message revoking, and automatically send custom text to continue the generation.
@@ -48,6 +51,8 @@ Platform information:
    - Paste your cookies into a file `cookies.json`, created in the same directory as the executable file.
    - **Note: make sure you can use the web chat before exporting the cookie.**
 2. Run the program.
+
+**(NEW) Give a try to [our new browser extension](https://github.com/juzeon/SydneyQt-browser-extension) with the abilities of automatically resolving CAPTCHA, exporting cookies, etc!**
 
 Please follow the instructions in the next section to solve common issues.
 

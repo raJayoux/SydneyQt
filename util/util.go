@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/samber/lo"
@@ -119,17 +120,9 @@ func MustGenerateRandomHex(length int) string {
 }
 
 type FileCookie struct {
-	Domain         string      `json:"domain"`
-	ExpirationDate float64     `json:"expirationDate"`
-	HostOnly       bool        `json:"hostOnly"`
-	HttpOnly       bool        `json:"httpOnly"`
-	Name           string      `json:"name"`
-	Path           string      `json:"path"`
-	SameSite       string      `json:"sameSite"`
-	Secure         bool        `json:"secure"`
-	Session        bool        `json:"session"`
-	StoreId        interface{} `json:"storeId"`
-	Value          string      `json:"value"`
+	Name   string `json:"name"`
+	Value  string `json:"value"`
+	Domain string `json:"domain"`
 }
 
 func ReadCookiesFile() (map[string]string, error) {
@@ -223,6 +216,9 @@ func OpenURL(url string) error {
 func ReadDebugOptionSets() (debugOptionsSets []string) {
 	debugOptionsSetsFile, err := os.ReadFile("debug_options_sets.json")
 	if err != nil {
+		return
+	}
+	if strings.TrimSpace(string(debugOptionsSetsFile)) == "" {
 		return
 	}
 	err = json.Unmarshal(debugOptionsSetsFile, &debugOptionsSets)
