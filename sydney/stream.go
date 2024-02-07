@@ -1,8 +1,10 @@
 package sydney
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -18,9 +20,13 @@ import (
 	"nhooyr.io/websocket"
 )
 
-func (o *Sydney) AskStream(options AskStreamOptions) <-chan Message {
+func (o *Sydney) AskStream(options AskStreamOptions) (<-chan Message, error) {
 	out := make(chan Message)
-	ch := o.AskStreamRaw(options)
+	options.messageID = uuid.New().String()
+	conversation, ch, err := o.AskStreamRaw(options)
+	if err != nil {
+		return nil, err
+	}
 	go func(out chan Message, ch <-chan RawMessage) {
 		defer func() {
 			slog.Info("AskStream is closing out message channel")
@@ -43,12 +49,64 @@ func (o *Sydney) AskStream(options AskStreamOptions) <-chan Message {
 		for msg := range ch {
 			if msg.Error != nil {
 				slog.Error("Ask stream message", "error", msg.Error)
-				out <- Message{
-					Type:  MessageTypeError,
-					Text:  msg.Error.Error(),
-					Error: msg.Error,
+				if strings.Contains(msg.Error.Error(), "CAPTCHA") {
+					if options.disableCaptchaBypass {
+						err0 := errors.New("infinite CAPTCHA detected; " +
+							"please resolve it manually on Bing's website or mobile client")
+						out <- Message{
+							Type:  MessageTypeError,
+							Text:  err0.Error(),
+							Error: err0,
+						}
+						return
+					}
+					slog.Info("Start to resolve the captcha", "server", o.bypassServer)
+					out <- Message{
+						Type: MessageTypeResolvingCaptcha,
+						Text: "Please wait patiently while we are resolving the CAPTCHA...",
+					}
+					if o.bypassServer == "" {
+						err = o.ResolveCaptcha(options.StopCtx)
+					} else {
+						err = o.BypassCaptcha(options.StopCtx, conversation.ConversationId,
+							options.messageID)
+					}
+					if err != nil {
+						if !errors.Is(err, context.Canceled) {
+							err = fmt.Errorf("cannot resolve CAPTCHA automatically; "+
+								"please resolve it manually on Bing's website or mobile client: %w", err)
+							out <- Message{
+								Type:  MessageTypeError,
+								Text:  err.Error(),
+								Error: err,
+							}
+						}
+						return
+					}
+					newOptions := options
+					newOptions.disableCaptchaBypass = true
+					newOptions.messageID = ""
+					newCh, err := o.AskStream(newOptions)
+					if err != nil {
+						out <- Message{
+							Type:  MessageTypeError,
+							Text:  err.Error(),
+							Error: err,
+						}
+						return
+					}
+					for newMsg := range newCh { // proxy messages from recursive AskStream
+						out <- newMsg
+					}
+					return
+				} else {
+					out <- Message{
+						Type:  MessageTypeError,
+						Text:  msg.Error.Error(),
+						Error: msg.Error,
+					}
+					return
 				}
-				return
 			}
 			data := gjson.Parse(msg.Data)
 			if data.Get("type").Int() == 1 && data.Get("arguments.0.messages").Exists() {
@@ -223,10 +281,19 @@ func (o *Sydney) AskStream(options AskStreamOptions) <-chan Message {
 			}
 		}
 	}(out, ch)
-	return out
+	return out, nil
 }
-func (o *Sydney) AskStreamRaw(options AskStreamOptions) <-chan RawMessage {
-	slog.Info("AskStreamRaw called")
+func (o *Sydney) AskStreamRaw(options AskStreamOptions) (CreateConversationResponse, <-chan RawMessage, error) {
+	slog.Info("AskStreamRaw called, creating conversation...")
+	conversation, err := o.createConversation()
+	if err != nil {
+		return CreateConversationResponse{}, nil, err
+	}
+	select {
+	case <-options.StopCtx.Done():
+		return conversation, nil, options.StopCtx.Err()
+	default:
+	}
 	msgChan := make(chan RawMessage)
 	go func(msgChan chan RawMessage) {
 		defer func(msgChan chan RawMessage) {
@@ -240,22 +307,26 @@ func (o *Sydney) AskStreamRaw(options AskStreamOptions) <-chan RawMessage {
 			}
 			return
 		}
-		messageID, err := uuid.NewUUID()
-		if err != nil {
-			msgChan <- RawMessage{
-				Error: err,
+		messageID := options.messageID
+		if messageID == "" {
+			msgID, err := uuid.NewUUID()
+			if err != nil {
+				msgChan <- RawMessage{
+					Error: err,
+				}
+				return
 			}
-			return
+			messageID = msgID.String()
 		}
 		httpHeaders := http.Header{}
-		for k, v := range o.headers {
+		for k, v := range o.headers() {
 			httpHeaders.Set(k, v)
 		}
 		ctx, cancel := util.CreateTimeoutContext(10 * time.Second)
 		defer cancel()
 		connRaw, resp, err := websocket.Dial(ctx,
-			o.wssURL+util.Ternary(options.Conversation.SecAccessToken != "", "?sec_access_token="+
-				url.QueryEscape(options.Conversation.SecAccessToken), ""),
+			o.wssURL+util.Ternary(conversation.SecAccessToken != "", "?sec_access_token="+
+				url.QueryEscape(conversation.SecAccessToken), ""),
 			&websocket.DialOptions{
 				HTTPClient: client,
 				HTTPHeader: httpHeaders,
@@ -297,9 +368,6 @@ func (o *Sydney) AskStreamRaw(options AskStreamOptions) <-chan RawMessage {
 			return
 		}
 		optionsSets := o.optionsSetMap[o.conversationStyle]
-		if o.noSearch {
-			optionsSets = append(optionsSets, "nosearchall")
-		}
 		if debugOptionSets := util.ReadDebugOptionSets(); len(debugOptionSets) != 0 {
 			optionsSets = debugOptionSets
 		}
@@ -313,7 +381,7 @@ func (o *Sydney) AskStreamRaw(options AskStreamOptions) <-chan RawMessage {
 					Verbosity:           "verbose",
 					Scenario:            "SERP",
 					TraceId:             util.MustGenerateRandomHex(16),
-					RequestId:           messageID.String(),
+					RequestId:           messageID,
 					IsStartOfSession:    true,
 					Message: ArgumentMessage{
 						Locale:        o.locale,
@@ -324,16 +392,16 @@ func (o *Sydney) AskStreamRaw(options AskStreamOptions) <-chan RawMessage {
 						InputMethod:   "Keyboard",
 						Text:          options.Prompt,
 						MessageType:   []string{"Chat", "CurrentWebpageContextRequest"}[util.RandIntInclusive(0, 1)],
-						RequestId:     messageID.String(),
-						MessageId:     messageID.String(),
+						RequestId:     messageID,
+						MessageId:     messageID,
 						ImageUrl:      util.Ternary[any](options.ImageURL == "", nil, options.ImageURL),
 					},
 					Tone: o.conversationStyle,
-					ConversationSignature: util.Ternary[any](options.Conversation.ConversationSignature == "",
-						nil, options.Conversation.ConversationSignature),
-					Participant:    Participant{Id: options.Conversation.ClientId},
+					ConversationSignature: util.Ternary[any](conversation.ConversationSignature == "",
+						nil, conversation.ConversationSignature),
+					Participant:    Participant{Id: conversation.ClientId},
 					SpokenTextMode: "None",
-					ConversationId: options.Conversation.ConversationId,
+					ConversationId: conversation.ConversationId,
 					PreviousMessages: []PreviousMessage{
 						{
 							Author:      "user",
@@ -398,9 +466,15 @@ func (o *Sydney) AskStreamRaw(options AskStreamOptions) <-chan RawMessage {
 				}
 				result := gjson.Parse(msg)
 				if result.Get("type").Int() == 2 && result.Get("item.result.value").String() != "Success" {
+					if result.Get("item.result.message").String() == "Unhandled Exception" {
+						slog.Warn("Suppressed Unhandled Exception", "v",
+							result.Get("item.result").Raw)
+						return
+					}
 					msgChan <- RawMessage{
-						Error: errors.New(result.Get("item.result.value").Raw + ": " +
-							result.Get("item.result.message").Raw),
+						Error: errors.New("bing explicit error: value: " +
+							result.Get("item.result.value").String() + "; message: " +
+							result.Get("item.result.message").String()),
 					}
 					return
 				}
@@ -414,5 +488,5 @@ func (o *Sydney) AskStreamRaw(options AskStreamOptions) <-chan RawMessage {
 			}
 		}
 	}(msgChan)
-	return msgChan
+	return conversation, msgChan, nil
 }

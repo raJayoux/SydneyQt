@@ -97,38 +97,6 @@ func main() {
 		fmt.Fprint(w, "OK")
 	})
 
-	r.Post("/conversation/new", func(w http.ResponseWriter, r *http.Request) {
-		// parse request
-		var request CreateConversationRequest
-
-		err := json.NewDecoder(r.Body).Decode(&request)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		cookies := util.Ternary(request.Cookies == "", defaultCookies, ParseCookies(request.Cookies))
-
-		// create conversation
-		conversation, err := sydney.
-			NewSydney(sydney.Options{
-				Cookies: cookies,
-				Proxy:   proxy,
-			}).
-			CreateConversation()
-
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		// set headers
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-
-		// write response
-		json.NewEncoder(w).Encode(conversation)
-	})
-
 	r.Post("/image/upload", func(w http.ResponseWriter, r *http.Request) {
 		// parse request
 		r.ParseMultipartForm(16 << 20)
@@ -226,26 +194,20 @@ func main() {
 			ConversationStyle: request.ConversationStyle,
 			Locale:            request.Locale,
 			NoSearch:          request.NoSearch,
-			GPT4Turbo:         request.UseGPT4Turbo,
+			UseClassic:        !request.UseGPT4Turbo,
 		})
 
-		// create new conversation if not provided
-		if request.Conversation.ConversationId == "" {
-			request.Conversation, err = sydneyAPI.CreateConversation()
-			if err != nil {
-				http.Error(w, "error creating conversation: "+err.Error(), http.StatusInternalServerError)
-				return
-			}
-		}
-
 		// stream chat
-		messageCh := sydneyAPI.AskStream(sydney.AskStreamOptions{
+		messageCh, err := sydneyAPI.AskStream(sydney.AskStreamOptions{
 			StopCtx:        r.Context(),
-			Conversation:   request.Conversation,
 			Prompt:         request.Prompt,
 			WebpageContext: request.WebpageContext,
 			ImageURL:       request.ImageURL,
 		})
+		if err != nil {
+			http.Error(w, "error creating conversation: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		// set headers
 		w.Header().Set("Content-Type", "text/event-stream; charset=UTF-8")
@@ -290,25 +252,19 @@ func main() {
 			ConversationStyle: conversationStyle,
 			Locale:            "en-US",
 			NoSearch:          request.ToolChoice == nil,
-			GPT4Turbo:         true,
+			UseClassic:        false,
 		})
 
-		// create new conversation if not provided
-		if request.Conversation.ConversationId == "" {
-			request.Conversation, err = sydneyAPI.CreateConversation()
-			if err != nil {
-				http.Error(w, "error creating conversation: "+err.Error(), http.StatusInternalServerError)
-				return
-			}
-		}
-
-		messageCh := sydneyAPI.AskStream(sydney.AskStreamOptions{
+		messageCh, err := sydneyAPI.AskStream(sydney.AskStreamOptions{
 			StopCtx:        r.Context(),
-			Conversation:   request.Conversation,
 			Prompt:         parsedMessages.Prompt,
 			WebpageContext: parsedMessages.WebpageContext,
 			ImageURL:       parsedMessages.ImageURL,
 		})
+		if err != nil {
+			http.Error(w, "error creating conversation: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		// handle non-stream
 		if !request.Stream {
@@ -399,22 +355,19 @@ func main() {
 			Locale:            "en-US",
 		})
 
-		// create conversation
-		conversation, err := sydneyAPI.CreateConversation()
+		// ask stream
+		newContext, cancel := context.WithCancel(r.Context())
+		defer cancel()
+
+		messageCh, err := sydneyAPI.AskStream(sydney.AskStreamOptions{
+			StopCtx:        newContext,
+			Prompt:         request.Prompt,
+			WebpageContext: ImageGeneratorContext,
+		})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-
-		// ask stream
-		newContext, cancel := context.WithCancel(r.Context())
-
-		messageCh := sydneyAPI.AskStream(sydney.AskStreamOptions{
-			StopCtx:        newContext,
-			Conversation:   conversation,
-			Prompt:         request.Prompt,
-			WebpageContext: ImageGeneratorContext,
-		})
 
 		var generativeImage sydney.GenerativeImage
 

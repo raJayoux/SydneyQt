@@ -45,6 +45,7 @@ const (
 	MessageTypeGenerativeImage    = "generative_image"
 	MessageTypeExecutingTask      = "executing_task"
 	MessageTypeGeneratedCode      = "generated_code"
+	MessageTypeResolvingCaptcha   = "resolving_captcha"
 	MessageTypeMessageText        = "message"
 	MessageTypeSuggestedResponses = "suggested_responses"
 	MessageTypeError              = "error"
@@ -117,14 +118,17 @@ type Options struct {
 	WssDomain             string
 	CreateConversationURL string
 	NoSearch              bool
-	GPT4Turbo             bool
+	UseClassic            bool
+	BypassServer          string
 }
 type AskStreamOptions struct {
 	StopCtx        context.Context
-	Conversation   CreateConversationResponse
 	Prompt         string
 	WebpageContext string
 	ImageURL       string
+
+	messageID            string // A random uuid. Optional.
+	disableCaptchaBypass bool
 }
 type UploadImagePayload struct {
 	ImageInfo        map[string]any   `json:"imageInfo"`
@@ -160,4 +164,18 @@ type SourceAttribute struct {
 	Index int    `json:"index"`
 	Link  string `json:"link"`
 	Title string `json:"title"`
+}
+type BypassCaptchaRequest struct {
+	IG       string `json:"IG"`
+	Cookies  string `json:"cookies"`
+	IFrameID string `json:"iframeid"`
+	ConvID   string `json:"convId"`
+	RID      string `json:"rid"`
+}
+type BypassCaptchaResponse struct {
+	Result struct {
+		Cookies    string `json:"cookies"`
+		ScreenShot string `json:"screenshot"`
+	} `json:"result"`
+	Error string `json:"error"`
 }

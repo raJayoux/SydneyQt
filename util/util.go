@@ -96,6 +96,21 @@ func FormatCookieString(cookies map[string]string) string {
 	}
 	return str
 }
+func ParseCookiesFromString(cookiesStr string) map[string]string {
+	cookies := map[string]string{}
+	for _, cookie := range strings.Split(cookiesStr, ";") {
+		parts := strings.Split(cookie, "=")
+		if len(parts) != 2 {
+			continue
+		}
+		unescape, err := url.PathUnescape(strings.TrimSpace(parts[1]))
+		if err != nil {
+			unescape = parts[1]
+		}
+		cookies[strings.TrimSpace(parts[0])] = unescape
+	}
+	return cookies
+}
 func CopyMap[T comparable, E any](source map[T]E) map[T]E {
 	res := map[T]E{}
 	for k, v := range source {
@@ -120,26 +135,50 @@ func MustGenerateRandomHex(length int) string {
 }
 
 type FileCookie struct {
-	Name   string `json:"name"`
-	Value  string `json:"value"`
-	Domain string `json:"domain"`
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
-func ReadCookiesFile() (map[string]string, error) {
-	res := map[string]string{}
+func ReadCookiesFileRaw() ([]FileCookie, error) {
 	v, err := os.ReadFile("cookies.json")
 	if err != nil {
-		return res, nil
+		return nil, nil
 	}
 	var cookies []FileCookie
 	err = json.Unmarshal(v, &cookies)
 	if err != nil {
-		return res, errors.New("failed to json.Unmarshal content of cookie file")
+		return nil, errors.New("failed to json.Unmarshal content of cookie file")
+	}
+	return cookies, nil
+}
+func ReadCookiesFile() (map[string]string, error) {
+	res := map[string]string{}
+	cookies, err := ReadCookiesFileRaw()
+	if err != nil {
+		return nil, err
 	}
 	for _, cookie := range cookies {
 		res[cookie.Name] = cookie.Value
 	}
 	return res, nil
+}
+func UpdateCookiesFile(cookies map[string]string) error {
+	var arr []FileCookie
+	for k, v := range cookies {
+		arr = append(arr, FileCookie{
+			Name:  k,
+			Value: v,
+		})
+	}
+	v, err := json.MarshalIndent(&arr, "", "  ")
+	if err != nil {
+		return err
+	}
+	err = os.WriteFile("cookies.json", v, 0644)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 func Map[T any, E any](arr []T, function func(value T) E) []E {
 	var result []E
