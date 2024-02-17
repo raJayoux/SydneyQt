@@ -1,25 +1,20 @@
 package sydney
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"github.com/go-resty/resty/v2"
-	"strings"
+	"fmt"
 	"sydneyqt/util"
 	"time"
 )
 
 func (o *Sydney) UploadImage(jpgImgData []byte) (string, error) {
-	httpClient, err := util.MakeHTTPClient(o.proxy, 0)
+	_, client, err := util.MakeHTTPClient(o.proxy, 60*time.Second)
 	if err != nil {
 		return "", err
 	}
-	client := resty.New().
-		SetTransport(httpClient.Transport).
-		SetTimeout(60*time.Second).
-		SetHeader("Referer", "https://www.bing.com/search?q=Bing+AI&showconv=1&FORM=hpcodx")
+	client.SetCommonHeader("Referer", "https://www.bing.com/search?q=Bing+AI&showconv=1&FORM=hpcodx")
 	imageBase64 := base64.StdEncoding.EncodeToString(jpgImgData)
 	uploadImagePayload := UploadImagePayload{
 		ImageInfo: map[string]any{},
@@ -37,21 +32,19 @@ func (o *Sydney) UploadImage(jpgImgData []byte) (string, error) {
 	}
 	payload, err := json.Marshal(uploadImagePayload)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("cannot marshal uploadImagePayload: %w", err)
 	}
-	resp, err := client.R().SetMultipartFields(&resty.MultipartField{
-		Param:       "knowledgeRequest",
-		ContentType: "application/json",
-		Reader:      bytes.NewReader(payload),
-	}, &resty.MultipartField{
-		Param:       "imageBase64",
-		ContentType: "application/octet-stream",
-		Reader:      strings.NewReader(imageBase64),
+	resp, err := client.R().EnableForceMultipart().SetFormData(map[string]string{
+		"knowledgeRequest": string(payload),
+		"imageBase64":      imageBase64,
 	}).Post("https://www.bing.com/images/kblob")
-	var result UploadImageResponse
-	err = json.Unmarshal(resp.Body(), &result)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("cannot fire upload request: %w", err)
+	}
+	var result UploadImageResponse
+	err = json.Unmarshal(resp.Bytes(), &result)
+	if err != nil {
+		return "", fmt.Errorf("cannot unmarshal upload response: %w", err)
 	}
 	if result.BlobId == "" {
 		return "", errors.New("blobId is empty")

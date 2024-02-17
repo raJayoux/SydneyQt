@@ -3,11 +3,11 @@ package util
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/imroc/req/v3"
 	"image"
 	_ "image/gif"
 	"image/jpeg"
@@ -29,7 +29,6 @@ import (
 
 	"github.com/ncruces/zenity"
 	getproxy "github.com/rapid7/go-get-proxied/proxy"
-	tlsx "github.com/refraction-networking/utls"
 )
 
 func RandIntInclusive(min int, max int) int {
@@ -42,26 +41,16 @@ func Ternary[T any](expression bool, trueResult T, falseResult T) T {
 		return falseResult
 	}
 }
-func MakeHTTPClient(proxy string, timeout time.Duration) (*http.Client, error) {
+func MakeHTTPClient(proxy string, timeout time.Duration) (*http.Client, *req.Client, error) {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
-	c, err := tlsx.UTLSIdToSpec(tlsx.HelloChrome_102)
-	if err != nil {
-		return nil, err
-	}
-	transport.DisableKeepAlives = false
-	transport.TLSClientConfig = &tls.Config{
-		InsecureSkipVerify: true,
-		MinVersion:         c.TLSVersMin,
-		MaxVersion:         c.TLSVersMax,
-		CipherSuites:       c.CipherSuites,
-		ClientSessionCache: tls.NewLRUClientSessionCache(32),
-	}
+	reqClient := req.C().SetProxyURL(proxy).ImpersonateChrome()
 	if proxy != "" { // user filled proxy
 		proxyURL, err := url.Parse(proxy)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		transport.Proxy = http.ProxyURL(proxyURL)
+		reqClient.SetProxyURL(proxy)
 	} else { // try to get system proxy
 		log.SetOutput(io.Discard) // FIXME this is a dirty fix that may result in concurrency problems
 		proxies := []getproxy.Proxy{
@@ -80,34 +69,33 @@ func MakeHTTPClient(proxy string, timeout time.Duration) (*http.Client, error) {
 		}
 		if sysProxy != nil { // valid system proxy
 			transport.Proxy = http.ProxyURL(sysProxy.URL())
+			reqClient.SetProxyURL(sysProxy.URL().String())
 		}
 	}
 	client := &http.Client{}
 	client.Transport = transport
 	if timeout != time.Duration(0) {
 		client.Timeout = timeout
+		reqClient.SetTimeout(timeout)
 	}
-	return client, nil
+	return client, reqClient, nil
 }
 func FormatCookieString(cookies map[string]string) string {
 	str := ""
 	for k, v := range cookies {
-		str += k + "=" + url.PathEscape(v) + "; "
+		str += k + "=" + v + "; "
 	}
 	return str
 }
 func ParseCookiesFromString(cookiesStr string) map[string]string {
 	cookies := map[string]string{}
 	for _, cookie := range strings.Split(cookiesStr, ";") {
+		cookie = strings.TrimSpace(cookie)
 		parts := strings.Split(cookie, "=")
-		if len(parts) != 2 {
+		if len(parts) < 2 {
 			continue
 		}
-		unescape, err := url.PathUnescape(strings.TrimSpace(parts[1]))
-		if err != nil {
-			unescape = parts[1]
-		}
-		cookies[strings.TrimSpace(parts[0])] = unescape
+		cookies[parts[0]] = strings.Join(parts[1:], "=")
 	}
 	return cookies
 }

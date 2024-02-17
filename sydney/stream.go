@@ -169,7 +169,7 @@ func (o *Sydney) AskStream(options AskStreamOptions) (<-chan Message, error) {
 					generativeImage := GenerativeImage{
 						Text: messageText,
 						URL: "https://www.bing.com/images/create?" +
-							"partner=sydney&re=1&showselective=1&sude=1&kseed=8500&SFX=4" +
+							"partner=sydney&re=1&showselective=1&sude=1&kseed=7500&SFX=2&gptexp=unknown" +
 							"&q=" + url.QueryEscape(messageText) + "&iframeid=" +
 							message.Get("messageId").String(),
 					}
@@ -300,7 +300,7 @@ func (o *Sydney) AskStreamRaw(options AskStreamOptions) (CreateConversationRespo
 			slog.Info("AskStreamRaw is closing raw message channel")
 			close(msgChan)
 		}(msgChan)
-		client, err := util.MakeHTTPClient(o.proxy, 0)
+		client, _, err := util.MakeHTTPClient(o.proxy, 0)
 		if err != nil {
 			msgChan <- RawMessage{
 				Error: err,
@@ -406,7 +406,7 @@ func (o *Sydney) AskStreamRaw(options AskStreamOptions) (CreateConversationRespo
 							MessageType: "Context",
 						},
 					},
-					GptId: "copilot",
+					GptId: o.gptID,
 				},
 			},
 			InvocationId: "0",
@@ -462,11 +462,6 @@ func (o *Sydney) AskStreamRaw(options AskStreamOptions) (CreateConversationRespo
 				}
 				result := gjson.Parse(msg)
 				if result.Get("type").Int() == 2 && result.Get("item.result.value").String() != "Success" {
-					if result.Get("item.result.message").String() == "Unhandled Exception" {
-						slog.Warn("Suppressed Unhandled Exception", "v",
-							result.Get("item.result").Raw)
-						return
-					}
 					msgChan <- RawMessage{
 						Error: errors.New("bing explicit error: value: " +
 							result.Get("item.result.value").String() + "; message: " +

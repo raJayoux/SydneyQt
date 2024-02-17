@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/go-resty/resty/v2"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
@@ -92,11 +91,10 @@ func (o *Sydney) BypassCaptcha(stopCtx context.Context, conversationID string, m
 	if o.bypassServer == "" {
 		return errors.New("no bypass server specified")
 	}
-	hClient, err := util.MakeHTTPClient(o.proxy, 0)
+	_, client, err := util.MakeHTTPClient(o.proxy, 60*time.Second)
 	if err != nil {
 		return err
 	}
-	client := resty.New().SetTransport(hClient.Transport).SetTimeout(60 * time.Second)
 	req := BypassCaptchaRequest{
 		IG:       hex.NewUpperHex(32),
 		Cookies:  util.FormatCookieString(o.cookies),
@@ -109,9 +107,9 @@ func (o *Sydney) BypassCaptcha(stopCtx context.Context, conversationID string, m
 	if err != nil {
 		return fmt.Errorf("cannot communicate with captcha bypass server: %w", err)
 	}
-	slog.Debug("Bypass captcha response body", "v", string(resp.Body()))
+	slog.Debug("Bypass captcha response body", "v", resp.String())
 	var response BypassCaptchaResponse
-	err = json.Unmarshal(resp.Body(), &response)
+	err = json.Unmarshal(resp.Bytes(), &response)
 	if err != nil {
 		return fmt.Errorf("cannot unmarshal json from captcha bypass server: %w", err)
 	}
@@ -126,10 +124,7 @@ func (o *Sydney) BypassCaptcha(stopCtx context.Context, conversationID string, m
 	}
 	return nil
 }
-func (o *Sydney) postprocessCaptchaCookies(modifiedCookies map[string]string) error {
-	if _, ok := modifiedCookies["cct"]; !ok {
-		return errors.New("captcha cookies not valid: no cookie named cct found")
-	}
+func (o *Sydney) UpdateModifiedCookies(modifiedCookies map[string]string) {
 	for k, v := range modifiedCookies { // keep the map pointer
 		o.cookies[k] = v
 	}
@@ -137,5 +132,11 @@ func (o *Sydney) postprocessCaptchaCookies(modifiedCookies map[string]string) er
 	if err != nil {
 		slog.Warn("Cannot update cookies file: ", "err", err)
 	}
+}
+func (o *Sydney) postprocessCaptchaCookies(modifiedCookies map[string]string) error {
+	if _, ok := modifiedCookies["cct"]; !ok {
+		return errors.New("captcha cookies not valid: no cookie named cct found")
+	}
+	o.UpdateModifiedCookies(modifiedCookies)
 	return nil
 }
