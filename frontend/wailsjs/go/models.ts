@@ -116,6 +116,7 @@ export namespace main {
 	    // Go type: time
 	    created_at: any;
 	    use_classic: boolean;
+	    gpt_4_turbo: boolean;
 	    persistent_input: boolean;
 	
 	    static createFrom(source: any = {}) {
@@ -136,6 +137,7 @@ export namespace main {
 	        this.image_packs = this.convertValues(source["image_packs"], sydney.GenerateImageResult);
 	        this.created_at = this.convertValues(source["created_at"], null);
 	        this.use_classic = source["use_classic"];
+	        this.gpt_4_turbo = source["gpt_4_turbo"];
 	        this.persistent_input = source["persistent_input"];
 	    }
 	
@@ -195,6 +197,7 @@ export namespace main {
 	    theme_color: string;
 	    disable_no_search_loader: boolean;
 	    bypass_server: string;
+	    disable_summary_title_generation: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
@@ -225,6 +228,7 @@ export namespace main {
 	        this.theme_color = source["theme_color"];
 	        this.disable_no_search_loader = source["disable_no_search_loader"];
 	        this.bypass_server = source["bypass_server"];
+	        this.disable_summary_title_generation = source["disable_summary_title_generation"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

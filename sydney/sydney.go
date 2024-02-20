@@ -69,7 +69,6 @@ func NewSydney(options Options) *Sydney {
 	case "Precise":
 		optionsSet = append(optionsSet, "h3precise")
 	case "Creative":
-		optionsSet = append(optionsSet)
 		if options.UseClassic {
 			options.ConversationStyle = "CreativeClassic"
 		}
@@ -84,6 +83,9 @@ func NewSydney(options Options) *Sydney {
 	}
 	if options.NoSearch {
 		optionsSet = append(optionsSet, "nosearchall")
+	}
+	if options.GPT4Turbo && !options.UseClassic {
+		optionsSet = append(optionsSet, "gpt4tmncnp")
 	}
 	if debugOptionSets := util.ReadDebugOptionSets(); len(debugOptionSets) != 0 {
 		optionsSet = debugOptionSets
