@@ -17,11 +17,17 @@ export function FetchWebpage(arg1:string):Promise<main.FetchWebpageResult>;
 
 export function GenerateImage(arg1:sydney.GenerativeImage):Promise<sydney.GenerateImageResult>;
 
+export function GenerateMusic(arg1:sydney.GenerativeMusic):Promise<sydney.GenerateMusicResult>;
+
 export function GetConciseAnswer(arg1:main.ConciseAnswerReq):Promise<string>;
 
 export function GetUser():Promise<string>;
 
+export function SaveRemoteFile(arg1:string,arg2:string,arg3:string):Promise<void>;
+
 export function SaveRemoteJPEGImage(arg1:string):Promise<void>;
+
+export function SelectUploadFile():Promise<string>;
 
 export function ShareWorkspace(arg1:number):Promise<void>;
 

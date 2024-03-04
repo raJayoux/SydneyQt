@@ -22,9 +22,10 @@ A cross-platform desktop client for the jailbroken New Bing AI (Sydney ver.) bui
 - Craft, choose and send custom quick responses to the chat.
 - Display the rich or plain text of the chat context, supporting LaTeX formulas, tables, codes, etc.
 - Chat with webpages you browse.
-- Chat with documents you open (including pdf, docx, pptx, txt and md).
+- Chat with files you upload (including pdf, docx, pptx, xlsx, and other plain text files / code files).
 - GPT-4 with vision that supports image search.
 - Generate images using the latest DALL·E 3 model.
+- Generate music audio and video using Bing's Suno model.
 - Use OpenAI ChatGPT API with swichable different configurations.
 - Switch between custom prompt presets.
 - Responsible and humanized UI designs built with modern web technologies.
@@ -145,21 +146,31 @@ Thanks to [@PeronGH](https://github.com/PeronGH) we now have a Web API. [Check o
 
 ## Screenshots
 
-![](https://public.ptree.top/ShareX/2023/12/04/1701694976/1qwHCtSW7D.png)
+![](https://public.ptree.top/ShareX/2024/03/04/1709523428/sgKblqUfnA.png)
 
 ![](https://public.ptree.top/ShareX/2023/12/05/1701779864/syd-color.jpg)
 
-![](https://public.ptree.top/ShareX/2023/12/11/1702287078/qUxbdxgRcN.png)
+![](https://public.ptree.top/ShareX/2024/03/04/1709523634/GbdrCn4VJf.png)
 
-![](https://public.ptree.top/ShareX/2023/12/04/1701694905/sGRMfoZDFY.png)
+![](https://public.ptree.top/ShareX/2024/03/04/1709523618/lqXNgbfCt7.png)
 
-![](https://public.ptree.top/ShareX/2023/12/04/1701694936/KwoV5xRVCj.png)
+![](https://public.ptree.top/ShareX/2024/03/04/1709523689/QQ3UWHSWpf.png)
 
-![](https://public.ptree.top/ShareX/2023/12/04/1701694957/vRsuaw8lOD.png)
+![](https://public.ptree.top/ShareX/2024/03/04/1709523461/yGHPtEnYj3.png)
 
-![](https://public.ptree.top/ShareX/2023/12/04/1701696071/u8vwoftQT5.png)
+![](https://public.ptree.top/ShareX/2024/03/04/1709523494/dXybgQt0gg.png)
 
-![](https://public.ptree.top/ShareX/2023/12/04/1701695093/457fe0ufJZ.png)
+![](https://public.ptree.top/ShareX/2024/03/04/1709523476/6d3GqIwjV3.png)
+
+![](https://public.ptree.top/ShareX/2024/03/04/1709523522/KWaHW1IfhU.png)
+
+![](https://public.ptree.top/ShareX/2024/03/04/1709523563/BFTw4tcXdM.png)
+
+![](https://public.ptree.top/ShareX/2024/03/04/1709523534/8NkIBWd8Yl.png)
+
+![](https://public.ptree.top/ShareX/2024/03/04/1709523551/DYA9NyNXQP.png)
+
+
 
 ## Star History
 

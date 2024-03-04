@@ -20,9 +20,10 @@
 - 制作、选择和发送自定义的快速回复到聊天中。
 - 显示聊天上下文的富文本或纯文本，支持LaTeX公式、表格、代码等。
 - 与你浏览的网页聊天。
-- 与你打开的文档聊天（包括pdf、docx、pptx、txt和md）。
+- 与你打开的文件聊天（包括pdf、docx、pptx、xlsx和其他纯文本/代码文件）。
 - 具有视觉功能的GPT-4，支持图片搜索。
 - 使用最新的 DALL·E 3 模型生成图像。
+- 使用Bing的Suno模型生成音乐和音乐视频。
 - 使用可切换的不同配置的OpenAI ChatGPT API。
 - 在自定义的提示预设之间切换。
 - 使用现代的Web技术构建的负责任和人性化的UI设计。
@@ -143,21 +144,31 @@ Bing禁止特定国家访问Bing AI（具体来说，是sydney.bing.com），所
 
 ## 截图
 
-![](https://public.ptree.top/ShareX/2023/12/04/1701694976/1qwHCtSW7D.png)
+![](https://public.ptree.top/ShareX/2024/03/04/1709523428/sgKblqUfnA.png)
 
 ![](https://public.ptree.top/ShareX/2023/12/05/1701779864/syd-color.jpg)
 
-![](https://public.ptree.top/ShareX/2023/12/11/1702287078/qUxbdxgRcN.png)
+![](https://public.ptree.top/ShareX/2024/03/04/1709523634/GbdrCn4VJf.png)
 
-![](https://public.ptree.top/ShareX/2023/12/04/1701694905/sGRMfoZDFY.png)
+![](https://public.ptree.top/ShareX/2024/03/04/1709523618/lqXNgbfCt7.png)
 
-![](https://public.ptree.top/ShareX/2023/12/04/1701694936/KwoV5xRVCj.png)
+![](https://public.ptree.top/ShareX/2024/03/04/1709523689/QQ3UWHSWpf.png)
 
-![](https://public.ptree.top/ShareX/2023/12/04/1701694957/vRsuaw8lOD.png)
+![](https://public.ptree.top/ShareX/2024/03/04/1709523461/yGHPtEnYj3.png)
 
-![](https://public.ptree.top/ShareX/2023/12/04/1701696071/u8vwoftQT5.png)
+![](https://public.ptree.top/ShareX/2024/03/04/1709523494/dXybgQt0gg.png)
 
-![](https://public.ptree.top/ShareX/2023/12/04/1701695093/457fe0ufJZ.png)
+![](https://public.ptree.top/ShareX/2024/03/04/1709523476/6d3GqIwjV3.png)
+
+![](https://public.ptree.top/ShareX/2024/03/04/1709523522/KWaHW1IfhU.png)
+
+![](https://public.ptree.top/ShareX/2024/03/04/1709523563/BFTw4tcXdM.png)
+
+![](https://public.ptree.top/ShareX/2024/03/04/1709523534/8NkIBWd8Yl.png)
+
+![](https://public.ptree.top/ShareX/2024/03/04/1709523551/DYA9NyNXQP.png)
+
+
 
 ## Star 历史
 

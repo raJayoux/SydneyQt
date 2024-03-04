@@ -6,6 +6,7 @@ export namespace main {
 	    chat_context: string;
 	    prompt: string;
 	    image_url: string;
+	    upload_file_path: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new AskOptions(source);
@@ -18,6 +19,7 @@ export namespace main {
 	        this.chat_context = source["chat_context"];
 	        this.prompt = source["prompt"];
 	        this.image_url = source["image_url"];
+	        this.upload_file_path = source["upload_file_path"];
 	    }
 	}
 	export class ChatFinishResult {
@@ -72,6 +74,20 @@ export namespace main {
 	        this.backend = source["backend"];
 	    }
 	}
+	export class Migration {
+	    sydney_preset_20240304: boolean;
+	    theme_color_20240304: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Migration(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sydney_preset_20240304 = source["sydney_preset_20240304"];
+	        this.theme_color_20240304 = source["theme_color_20240304"];
+	    }
+	}
 	export class OpenAIBackend {
 	    name: string;
 	    openai_key: string;
@@ -102,6 +118,22 @@ export namespace main {
 	        this.max_tokens = source["max_tokens"];
 	    }
 	}
+	export class DataReference {
+	    uuid: string;
+	    type: string;
+	    data: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new DataReference(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.uuid = source["uuid"];
+	        this.type = source["type"];
+	        this.data = source["data"];
+	    }
+	}
 	export class Workspace {
 	    id: number;
 	    title: string;
@@ -112,12 +144,13 @@ export namespace main {
 	    preset: string;
 	    conversation_style: string;
 	    no_search: boolean;
-	    image_packs: sydney.GenerateImageResult[];
 	    // Go type: time
 	    created_at: any;
 	    use_classic: boolean;
 	    gpt_4_turbo: boolean;
 	    persistent_input: boolean;
+	    plugins: string[];
+	    data_references: DataReference[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Workspace(source);
@@ -134,11 +167,12 @@ export namespace main {
 	        this.preset = source["preset"];
 	        this.conversation_style = source["conversation_style"];
 	        this.no_search = source["no_search"];
-	        this.image_packs = this.convertValues(source["image_packs"], sydney.GenerateImageResult);
 	        this.created_at = this.convertValues(source["created_at"], null);
 	        this.use_classic = source["use_classic"];
 	        this.gpt_4_turbo = source["gpt_4_turbo"];
 	        this.persistent_input = source["persistent_input"];
+	        this.plugins = source["plugins"];
+	        this.data_references = this.convertValues(source["data_references"], DataReference);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -189,15 +223,16 @@ export namespace main {
 	    quick: string[];
 	    disable_direct_quick: boolean;
 	    open_ai_backends: OpenAIBackend[];
-	    clear_image_after_send: boolean;
 	    wss_domain: string;
 	    dark_mode: boolean;
 	    no_image_removal_after_chat: boolean;
+	    no_file_removal_after_chat: boolean;
 	    create_conversation_url: string;
 	    theme_color: string;
 	    disable_no_search_loader: boolean;
 	    bypass_server: string;
 	    disable_summary_title_generation: boolean;
+	    migration: Migration;
 	
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
@@ -220,15 +255,16 @@ export namespace main {
 	        this.quick = source["quick"];
 	        this.disable_direct_quick = source["disable_direct_quick"];
 	        this.open_ai_backends = this.convertValues(source["open_ai_backends"], OpenAIBackend);
-	        this.clear_image_after_send = source["clear_image_after_send"];
 	        this.wss_domain = source["wss_domain"];
 	        this.dark_mode = source["dark_mode"];
 	        this.no_image_removal_after_chat = source["no_image_removal_after_chat"];
+	        this.no_file_removal_after_chat = source["no_file_removal_after_chat"];
 	        this.create_conversation_url = source["create_conversation_url"];
 	        this.theme_color = source["theme_color"];
 	        this.disable_no_search_loader = source["disable_no_search_loader"];
 	        this.bypass_server = source["bypass_server"];
 	        this.disable_summary_title_generation = source["disable_summary_title_generation"];
+	        this.migration = this.convertValues(source["migration"], Migration);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -249,6 +285,7 @@ export namespace main {
 		    return a;
 		}
 	}
+	
 	export class FetchWebpageResult {
 	    title: string;
 	    content: string;
@@ -263,6 +300,7 @@ export namespace main {
 	        this.content = source["content"];
 	    }
 	}
+	
 	
 	
 	export class UploadSydneyDocumentResult {
@@ -320,6 +358,38 @@ export namespace sydney {
 	        this.duration = source["duration"];
 	    }
 	}
+	export class GenerateMusicResult {
+	    iframeid: string;
+	    requestid: string;
+	    text: string;
+	    cover_img_url: string;
+	    music_url: string;
+	    video_url: string;
+	    duration: number;
+	    musical_style: string;
+	    title: string;
+	    lyrics: string;
+	    time_elapsed: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new GenerateMusicResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.iframeid = source["iframeid"];
+	        this.requestid = source["requestid"];
+	        this.text = source["text"];
+	        this.cover_img_url = source["cover_img_url"];
+	        this.music_url = source["music_url"];
+	        this.video_url = source["video_url"];
+	        this.duration = source["duration"];
+	        this.musical_style = source["musical_style"];
+	        this.title = source["title"];
+	        this.lyrics = source["lyrics"];
+	        this.time_elapsed = source["time_elapsed"];
+	    }
+	}
 	export class GenerativeImage {
 	    text: string;
 	    url: string;
@@ -332,6 +402,22 @@ export namespace sydney {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.text = source["text"];
 	        this.url = source["url"];
+	    }
+	}
+	export class GenerativeMusic {
+	    iframeid: string;
+	    requestid: string;
+	    text: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GenerativeMusic(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.iframeid = source["iframeid"];
+	        this.requestid = source["requestid"];
+	        this.text = source["text"];
 	    }
 	}
 

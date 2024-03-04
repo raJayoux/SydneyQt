@@ -144,6 +144,13 @@ func (o *Sydney) AskStream(options AskStreamOptions) (<-chan Message, error) {
 						})
 					}
 				case "InternalLoaderMessage":
+					if message.Get("contentOrigin").String() == "retrieve-shortdoc-progress" {
+						out <- Message{
+							Type: MessageTypeLoading,
+							Text: messageText + " " + messageHiddenText,
+						}
+						continue
+					}
 					if message.Get("hiddenText").Exists() {
 						out <- Message{
 							Type: MessageTypeLoading,
@@ -163,23 +170,39 @@ func (o *Sydney) AskStream(options AskStreamOptions) (<-chan Message, error) {
 						Text: message.Raw,
 					}
 				case "GenerateContentQuery":
-					if message.Get("contentType").String() != "IMAGE" {
+					switch message.Get("contentType").String() {
+					case "IMAGE":
+						generativeImage := GenerativeImage{
+							Text: messageText,
+							URL: "https://www.bing.com/images/create?" +
+								"partner=sydney&re=1&showselective=1&sude=1&kseed=7500&SFX=2&gptexp=unknown" +
+								"&q=" + url.QueryEscape(messageText) + "&iframeid=" +
+								message.Get("messageId").String(),
+						}
+						v, err := json.Marshal(&generativeImage)
+						if err != nil {
+							util.GracefulPanic(err)
+						}
+						out <- Message{
+							Type: MessageTypeGenerativeImage,
+							Text: string(v),
+						}
+					case "SUNO":
+						generativeMusic := GenerativeMusic{
+							IFrameID:  message.Get("messageId").String(),
+							RequestID: strings.TrimPrefix(messageHiddenText, "RequestId="),
+							Text:      message.Get("invocation").String(),
+						}
+						v, err := json.Marshal(&generativeMusic)
+						if err != nil {
+							util.GracefulPanic(err)
+						}
+						out <- Message{
+							Type: MessageTypeGenerativeMusic,
+							Text: string(v),
+						}
+					default:
 						continue
-					}
-					generativeImage := GenerativeImage{
-						Text: messageText,
-						URL: "https://www.bing.com/images/create?" +
-							"partner=sydney&re=1&showselective=1&sude=1&kseed=7500&SFX=2&gptexp=unknown" +
-							"&q=" + url.QueryEscape(messageText) + "&iframeid=" +
-							message.Get("messageId").String(),
-					}
-					v, err := json.Marshal(&generativeImage)
-					if err != nil {
-						util.GracefulPanic(err)
-					}
-					out <- Message{
-						Type: MessageTypeGenerativeImage,
-						Text: string(v),
 					}
 				case "Progress":
 					switch contentOrigin {
@@ -191,6 +214,15 @@ func (o *Sydney) AskStream(options AskStreamOptions) (<-chan Message, error) {
 						out <- Message{
 							Type: MessageTypeExecutingTask,
 							Text: invocation,
+						}
+					case "OpenAPI-spec":
+						text := message.Get("adaptiveCards.0.body.0.columns.0.items.0.text").String()
+						if text == "" {
+							continue
+						}
+						out <- Message{
+							Type: MessageTypeOpenAPICall,
+							Text: text,
 						}
 					default:
 						slog.Warn("Unsupported progress type",
@@ -289,10 +321,40 @@ func (o *Sydney) AskStreamRaw(options AskStreamOptions) (CreateConversationRespo
 	if err != nil {
 		return CreateConversationResponse{}, nil, err
 	}
+	slog.Info("Conversation created", "conversation-id", conversation.ConversationId)
 	select {
 	case <-options.StopCtx.Done():
 		return conversation, nil, options.StopCtx.Err()
 	default:
+	}
+	previousMessages := []PreviousMessage{
+		{
+			Author:      "user",
+			Description: options.WebpageContext,
+			ContextType: "WebPage",
+			MessageType: "Context",
+		},
+	}
+	var uploadFileResult UploadFileResult
+	if options.UploadFilePath != "" {
+		slog.Info("Invoke file upload", "path", options.UploadFilePath)
+		uploadFileResult, err = o.uploadFile(options.UploadFilePath, conversation)
+		if err != nil {
+			return CreateConversationResponse{}, nil, err
+		}
+		select {
+		case <-options.StopCtx.Done():
+			return conversation, nil, options.StopCtx.Err()
+		default:
+		}
+		previousMessages = append(previousMessages, PreviousMessage{
+			Author: "user",
+			Description: "User has uploaded one or more files with the following metadata in Json format. " +
+				"I will use them as the main source of context when I answer questions from user.",
+			ContextType: "ClientApp",
+			MessageType: "Context",
+			HiddenText:  uploadFileResult.FileHiddenText,
+		})
 	}
 	msgChan := make(chan RawMessage)
 	go func(msgChan chan RawMessage) {
@@ -376,6 +438,7 @@ func (o *Sydney) AskStreamRaw(options AskStreamOptions) (CreateConversationRespo
 					SliceIds:            o.sliceIDs,
 					Verbosity:           "verbose",
 					Scenario:            "SERP",
+					Plugins:             o.plugins,
 					TraceId:             util.MustGenerateRandomHex(16),
 					RequestId:           messageID,
 					IsStartOfSession:    true,
@@ -389,6 +452,12 @@ func (o *Sydney) AskStreamRaw(options AskStreamOptions) (CreateConversationRespo
 						LocationHints: []LocationHint{
 							o.locationHint,
 						},
+						AttachedFilesInfos: lo.Ternary(uploadFileResult.Valid, []ArgumentAttachedFilesInfo{
+							{
+								FileName: uploadFileResult.Response.FileName,
+								FileType: uploadFileResult.RealFileType,
+							},
+						}, nil),
 						Author:      "user",
 						InputMethod: "Keyboard",
 						Text:        options.Prompt,
@@ -400,18 +469,11 @@ func (o *Sydney) AskStreamRaw(options AskStreamOptions) (CreateConversationRespo
 					Tone: o.conversationStyle,
 					ConversationSignature: util.Ternary[any](conversation.ConversationSignature == "",
 						nil, conversation.ConversationSignature),
-					Participant:    Participant{Id: conversation.ClientId},
-					SpokenTextMode: "None",
-					ConversationId: conversation.ConversationId,
-					PreviousMessages: []PreviousMessage{
-						{
-							Author:      "user",
-							Description: options.WebpageContext,
-							ContextType: "WebPage",
-							MessageType: "Context",
-						},
-					},
-					GptId: o.gptID,
+					Participant:      Participant{Id: conversation.ClientId},
+					SpokenTextMode:   "None",
+					ConversationId:   conversation.ConversationId,
+					PreviousMessages: previousMessages,
+					GptId:            o.gptID,
 				},
 			},
 			InvocationId: "0",

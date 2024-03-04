@@ -30,6 +30,10 @@ export function GenerateImage(arg1) {
   return window['go']['main']['App']['GenerateImage'](arg1);
 }
 
+export function GenerateMusic(arg1) {
+  return window['go']['main']['App']['GenerateMusic'](arg1);
+}
+
 export function GetConciseAnswer(arg1) {
   return window['go']['main']['App']['GetConciseAnswer'](arg1);
 }
@@ -38,8 +42,16 @@ export function GetUser() {
   return window['go']['main']['App']['GetUser']();
 }
 
+export function SaveRemoteFile(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SaveRemoteFile'](arg1, arg2, arg3);
+}
+
 export function SaveRemoteJPEGImage(arg1) {
   return window['go']['main']['App']['SaveRemoteJPEGImage'](arg1);
+}
+
+export function SelectUploadFile() {
+  return window['go']['main']['App']['SelectUploadFile']();
 }
 
 export function ShareWorkspace(arg1) {

@@ -5,11 +5,16 @@ import {marked} from "marked"
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 import {v4 as uuidV4} from "uuid"
+import RichImageBlock from "./rich_blocks/RichImageBlock.vue"
+import {main} from "../../../wailsjs/go/models"
+import RichMusicBlock from "./rich_blocks/RichMusicBlock.vue"
+import DataReference = main.DataReference
 
 let props = defineProps<{
   context: string,
   customFontStyle: any,
   lockScroll: boolean,
+  dataReferences: DataReference[],
 }>()
 let chatMessages = computed(() => {
   return toChatMessages(props.context)
@@ -133,6 +138,15 @@ function findNearestSearchResult(message: ChatMessage): ChatMessage | null {
   return searchResultMessage
 }
 
+function findDataReferenceFromUUID(uuid: string): DataReference | null {
+  uuid = uuid.trim()
+  let item = props.dataReferences.find(v => v.uuid === uuid)
+  if (item) {
+    return item
+  }
+  return null
+}
+
 onUpdated(() => {
   if (props.lockScroll) {
     return
@@ -152,12 +166,22 @@ onUpdated(() => {
         <v-icon>{{ iconMap?.[message.role as keyof typeof iconMap] ?? 'mdi-account-multiple' }}</v-icon>
         <p class="ml-3" style="text-transform: uppercase!important;">{{ message.role }}</p>
         <p class="ml-3 text-caption" style="color: #999">{{ message.type }}</p>
-        <v-btn class="ml-3" v-if="message.role==='system' && message.type==='additional_instructions'"
+        <v-btn class="ml-3" v-if="message.type.includes('instructions')"
                size="small" variant="text" @click="showSystemPrompt=!showSystemPrompt">
           {{ showSystemPrompt ? 'Hide' : 'Show' }}
         </v-btn>
       </div>
-      <div v-if="showSystemPrompt || !(message.role==='system' && message.type==='additional_instructions')"
+      <div v-if="message.type==='rich_data_reference'">
+        <div v-if="!findDataReferenceFromUUID(message.message)"><i>Undefined UUID</i></div>
+        <rich-image-block v-else-if="findDataReferenceFromUUID(message.message)!.type==='image'"
+                          :custom-font-style="customFontStyle"
+                          :data="findDataReferenceFromUUID(message.message)!.data"></rich-image-block>
+        <rich-music-block v-else-if="findDataReferenceFromUUID(message.message)!.type==='music'"
+                          :custom-font-style="customFontStyle"
+                          :data="findDataReferenceFromUUID(message.message)!.data"></rich-music-block>
+        <div v-else><i>Undefined data reference type: {{ findDataReferenceFromUUID(message.message)!.type }}</i></div>
+      </div>
+      <div v-else-if="showSystemPrompt || !message.type.includes('instructions')"
            v-html="renderMessage(message)" class="my-1"></div>
       <div v-else class="text-caption">...(omitted)</div>
       <v-divider class="my-3" v-if="index!==chatMessages.length-1"></v-divider>

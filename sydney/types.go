@@ -39,6 +39,7 @@ type CreateConversationResponse struct {
 	Result                CreateConversationResult `json:"result"`
 	SecAccessToken        string                   `json:"secAccessToken"`
 	ConversationSignature string                   `json:"conversationSignature"`
+	BearerToken           string                   `json:"bearerToken"`
 }
 type RawMessage struct {
 	Data  string
@@ -50,7 +51,9 @@ const (
 	MessageTypeSearchResult       = "search_result"
 	MessageTypeLoading            = "loading"
 	MessageTypeGenerativeImage    = "generative_image"
+	MessageTypeGenerativeMusic    = "generative_music"
 	MessageTypeExecutingTask      = "executing_task"
+	MessageTypeOpenAPICall        = "openapi_call"
 	MessageTypeGeneratedCode      = "generated_code"
 	MessageTypeResolvingCaptcha   = "resolving_captcha"
 	MessageTypeMessageText        = "message"
@@ -81,6 +84,7 @@ type Argument struct {
 	SliceIds              []string          `json:"sliceIds"`
 	Verbosity             string            `json:"verbosity"`
 	Scenario              string            `json:"scenario"`
+	Plugins               []ArgumentPlugin  `json:"plugins"`
 	TraceId               string            `json:"traceId"`
 	RequestId             string            `json:"requestId"`
 	IsStartOfSession      bool              `json:"isStartOfSession"`
@@ -93,19 +97,28 @@ type Argument struct {
 	PreviousMessages      []PreviousMessage `json:"previousMessages"`
 	GptId                 string            `json:"gptId"`
 }
+type ArgumentPlugin struct {
+	Id       string `json:"id"`
+	Category int    `json:"category"`
+}
 type ArgumentMessage struct {
-	Locale        string         `json:"locale"`
-	Market        string         `json:"market"`
-	Region        string         `json:"region"`
-	Location      string         `json:"location"`
-	LocationHints []LocationHint `json:"locationHints"`
-	Author        string         `json:"author"`
-	InputMethod   string         `json:"inputMethod"`
-	Text          string         `json:"text"`
-	MessageType   string         `json:"messageType"`
-	RequestId     string         `json:"requestId"`
-	MessageId     string         `json:"messageId"`
-	ImageUrl      any            `json:"imageUrl"`
+	Locale             string                      `json:"locale"`
+	Market             string                      `json:"market"`
+	Region             string                      `json:"region"`
+	Location           string                      `json:"location"`
+	LocationHints      []LocationHint              `json:"locationHints"`
+	AttachedFilesInfos []ArgumentAttachedFilesInfo `json:"attachedFilesInfos"`
+	Author             string                      `json:"author"`
+	InputMethod        string                      `json:"inputMethod"`
+	Text               string                      `json:"text"`
+	MessageType        string                      `json:"messageType"`
+	RequestId          string                      `json:"requestId"`
+	MessageId          string                      `json:"messageId"`
+	ImageUrl           any                         `json:"imageUrl"`
+}
+type ArgumentAttachedFilesInfo struct {
+	FileName string `json:"fileName"`
+	FileType string `json:"fileType"`
 }
 type Participant struct {
 	Id string `json:"id"`
@@ -115,7 +128,7 @@ type PreviousMessage struct {
 	Description string `json:"description"`
 	ContextType string `json:"contextType"`
 	MessageType string `json:"messageType"`
-	MessageId   string `json:"messageId"`
+	HiddenText  string `json:"hiddenText"`
 }
 type Options struct {
 	Debug                 bool
@@ -129,12 +142,14 @@ type Options struct {
 	UseClassic            bool
 	GPT4Turbo             bool
 	BypassServer          string
+	Plugins               []string
 }
 type AskStreamOptions struct {
 	StopCtx        context.Context
 	Prompt         string
 	WebpageContext string
 	ImageURL       string
+	UploadFilePath string
 
 	messageID            string // A random uuid. Optional.
 	disableCaptchaBypass bool
@@ -164,10 +179,26 @@ type GenerativeImage struct {
 	Text string `json:"text"`
 	URL  string `json:"url"`
 }
+type GenerativeMusic struct {
+	IFrameID  string `json:"iframeid"`
+	RequestID string `json:"requestid"`
+	Text      string `json:"text"`
+}
 type GenerateImageResult struct {
 	GenerativeImage
 	ImageURLs []string      `json:"image_urls"`
 	Duration  time.Duration `json:"duration"`
+}
+type GenerateMusicResult struct {
+	GenerativeMusic
+	CoverImgURL   string        `json:"cover_img_url"`
+	AudioURL      string        `json:"music_url"`
+	VideoURL      string        `json:"video_url"`
+	MusicDuration time.Duration `json:"duration"`
+	MusicalStyle  string        `json:"musical_style"`
+	Title         string        `json:"title"`
+	Lyrics        string        `json:"lyrics"`
+	TimeElapsed   time.Duration `json:"time_elapsed"`
 }
 type SourceAttribute struct {
 	Index int    `json:"index"`
@@ -187,4 +218,31 @@ type BypassCaptchaResponse struct {
 		ScreenShot string `json:"screenshot"`
 	} `json:"result"`
 	Error string `json:"error"`
+}
+type UploadFileHiddenText struct {
+	FileName      string `json:"fileName"`
+	FileType      string `json:"fileType"`
+	DocId         string `json:"docId"`
+	IsLongContext bool   `json:"isLongContext"`
+	UserId        string `json:"userId"`
+	IsBCE         bool   `json:"isBCE"`
+}
+type UploadFileResponse struct {
+	FileName      string `json:"fileName"`
+	FileSize      int    `json:"fileSize"`
+	FileType      string `json:"fileType"`
+	IsLongContext bool   `json:"isLongContext"`
+	DocId         string `json:"docId"`
+	UserId        string `json:"userId"`
+	Result        struct {
+		Value          string `json:"value"`
+		Message        string `json:"message"`
+		ServiceVersion string `json:"serviceVersion"`
+	} `json:"result"`
+}
+type UploadFileResult struct {
+	Valid          bool
+	Response       UploadFileResponse
+	FileHiddenText string
+	RealFileType   string
 }

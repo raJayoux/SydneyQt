@@ -25,11 +25,12 @@ const (
 type AskType int
 
 type AskOptions struct {
-	Type          AskType `json:"type"`
-	OpenAIBackend string  `json:"openai_backend"`
-	ChatContext   string  `json:"chat_context"`
-	Prompt        string  `json:"prompt"`
-	ImageURL      string  `json:"image_url"`
+	Type           AskType `json:"type"`
+	OpenAIBackend  string  `json:"openai_backend"`
+	ChatContext    string  `json:"chat_context"`
+	Prompt         string  `json:"prompt"`
+	ImageURL       string  `json:"image_url"`
+	UploadFilePath string  `json:"upload_file_path"`
 }
 
 const (
@@ -51,6 +52,7 @@ const (
 	EventChatSuggestedResponses = "chat_suggested_responses"
 	EventChatToken              = "chat_token"
 	EventChatGenerateImage      = "chat_generate_image"
+	EventChatGenerateMusic      = "chat_generate_music"
 	EventChatResolvingCaptcha   = "chat_resolving_captcha"
 )
 
@@ -82,6 +84,7 @@ func (a *App) createSydney() (*sydney.Sydney, error) {
 		UseClassic:            currentWorkspace.UseClassic,
 		GPT4Turbo:             currentWorkspace.GPT4Turbo,
 		BypassServer:          a.settings.config.BypassServer,
+		Plugins:               currentWorkspace.Plugins,
 	}), nil
 }
 
@@ -119,6 +122,7 @@ func (a *App) askSydney(options AskOptions) {
 		Prompt:         options.Prompt,
 		WebpageContext: options.ChatContext,
 		ImageURL:       options.ImageURL,
+		UploadFilePath: options.UploadFilePath,
 	})
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {
@@ -173,6 +177,11 @@ func (a *App) askSydney(options AskOptions) {
 			lo.Must0(json.Unmarshal([]byte(msg.Text), &image))
 			runtime.EventsEmit(a.ctx, EventChatGenerateImage, image)
 			textToAppend = image.Text + "\n\n"
+		case sydney.MessageTypeGenerativeMusic:
+			var music sydney.GenerativeMusic
+			lo.Must0(json.Unmarshal([]byte(msg.Text), &music))
+			runtime.EventsEmit(a.ctx, EventChatGenerateMusic, music)
+			textToAppend = music.Text + "\n\n"
 		case sydney.MessageTypeLoading:
 			if a.settings.config.DisableNoSearchLoader {
 				if msg.Text == "BingSearchDisabled" {

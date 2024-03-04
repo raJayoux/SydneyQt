@@ -3,27 +3,28 @@ import {computed, onMounted, onUnmounted, ref, watch} from "vue"
 import {main, sydney} from "../../wailsjs/go/models"
 import {EventsEmit, EventsOff, EventsOn} from "../../wailsjs/runtime"
 import {fromChatMessages, generateRandomName, shadeColor, swal, toChatMessages} from "../helper"
-import {AskAI, CountToken, GenerateImage, GetConciseAnswer} from "../../wailsjs/go/main/App"
+import {AskAI, CountToken, GenerateImage, GenerateMusic, GetConciseAnswer} from "../../wailsjs/go/main/App"
 import {AskTypeOpenAI, AskTypeSydney} from "../constants"
 import Scaffold from "../components/Scaffold.vue"
 import {useSettings} from "../composables"
 import {useTheme} from "vuetify"
 import dayjs from "dayjs"
+import {v4 as uuid4} from 'uuid'
 import RichChatContext from "../components/index/RichChatContext.vue"
 import UserStatusButton from "../components/index/UserStatusButton.vue"
 import WorkspaceNav from "../components/index/WorkspaceNav.vue"
-import UploadImageButton from "../components/index/UploadImageButton.vue"
+import UploadPanelButton from "../components/index/UploadPanelButton.vue"
 import UploadDocumentButton from "../components/index/UploadDocumentButton.vue"
 import FetchWebpageButton from "../components/index/FetchWebpageButton.vue"
 import RevokeButton from "../components/index/RevokeButton.vue"
-import GenerativeImageWindow from "../components/index/GenerativeImageWindow.vue"
 import AskOptions = main.AskOptions
 import Workspace = main.Workspace
 import ChatFinishResult = main.ChatFinishResult
 import UploadSydneyImageResult = main.UploadSydneyImageResult
 import GenerativeImage = sydney.GenerativeImage
-import GenerateImageResult = sydney.GenerateImageResult
 import ConciseAnswerReq = main.ConciseAnswerReq
+import GenerativeMusic = sydney.GenerativeMusic
+import DataReference = main.DataReference
 
 let theme = useTheme()
 let navDrawer = ref(true)
@@ -43,7 +44,8 @@ let currentWorkspace = ref(<Workspace>{
   preset: 'Sydney',
   conversation_style: 'Creative',
   no_search: false,
-  image_packs: <GenerateImageResult[]>[],
+  data_references: <DataReference[]>[],
+  plugins: <string[]>[],
   created_at: dayjs().format(),
   use_classic: false,
   gpt_4_turbo: false,
@@ -80,6 +82,25 @@ let isAsking = ref(false)
 let replied = ref(false)
 let lockScroll = ref(false)
 let captchaDialog = ref(false)
+let preparedDataReferenceText: string | null = null
+
+function insertAsDataReference(type: string, data: any) {
+  let dataReference = <DataReference>{
+    data,
+    uuid: uuid4(),
+    type,
+  }
+  let text = `[assistant](#rich_data_reference)\n${dataReference.uuid}\n\n`
+  if (isAsking.value) {
+    preparedDataReferenceText = text
+  } else {
+    appendBlockToCurrentWorkspace(text)
+  }
+  if (!currentWorkspace.value.data_references) {
+    currentWorkspace.value.data_references = []
+  }
+  currentWorkspace.value.data_references.push(dataReference)
+}
 
 let askEventMap = {
   "chat_append": (data: string) => {
@@ -116,6 +137,9 @@ let askEventMap = {
       if (!config.value.no_image_removal_after_chat) {
         uploadedImage.value = undefined
       }
+      if (!config.value.no_file_removal_after_chat) {
+        selectedUploadFile.value = undefined
+      }
       lockScroll.value = false
       if (!config.value.disable_summary_title_generation) {
         generateTitle()
@@ -148,6 +172,10 @@ let askEventMap = {
           break
       }
     }
+    if (preparedDataReferenceText) {
+      appendBlockToCurrentWorkspace(preparedDataReferenceText)
+      preparedDataReferenceText = null
+    }
   },
   "chat_suggested_responses": (data: string) => {
     suggestedResponses.value = JSON.parse(data)
@@ -161,6 +189,9 @@ let askEventMap = {
   },
   "chat_generate_image": (req: GenerativeImage) => {
     generateImage(req)
+  },
+  "chat_generate_music": (req: GenerativeMusic) => {
+    generateMusic(req)
   },
   "chat_resolving_captcha": (msg: string) => {
     captchaDialog.value = true
@@ -230,6 +261,7 @@ async function startAsking(args: StartAskingArgs = {}) {
   replyDeep.value = args.replyDeep !== undefined ? args.replyDeep : 0
   askOptions.openai_backend = currentWorkspace.value.backend
   askOptions.image_url = uploadedImage.value?.bing_url ?? ''
+  askOptions.upload_file_path = selectedUploadFile.value ?? ''
   await AskAI(askOptions)
 }
 
@@ -249,6 +281,7 @@ function stopAsking() {
 }
 
 let uploadedImage = ref<UploadSydneyImageResult | undefined>()
+let selectedUploadFile = ref<string | undefined>()
 
 function handleKeyPress(event: KeyboardEvent) {
   if (document.getElementById('user-input') !== document.activeElement) {
@@ -282,8 +315,11 @@ onMounted(() => {
     theme.global.name.value = config.value.dark_mode ? 'dark' : 'light'
     let workspace = config.value.workspaces?.find(v => v.id === config.value.current_workspace_id)
     if (workspace) {
-      if (!workspace.image_packs) {
-        workspace.image_packs = []
+      if (!workspace.plugins) {
+        workspace.plugins = []
+      }
+      if (!workspace.data_references) {
+        workspace.data_references = []
       }
       currentWorkspace.value = workspace
     } else {
@@ -315,25 +351,34 @@ function onPresetChange(newValue: string) {
 
 function onReset() {
   currentWorkspace.value.context = config.value.presets.find(v => v.name === currentWorkspace.value.preset)?.content ?? ''
-  currentWorkspace.value.image_packs = []
+  currentWorkspace.value.plugins = []
+  currentWorkspace.value.data_references = []
   suggestedResponses.value = []
 }
 
 let chatContextTabIndex = ref(0)
 
-let generativeImageLoading = ref(false)
+let generativeMediaLoading = ref(false)
 
 function generateImage(req: GenerativeImage) {
-  generativeImageLoading.value = true
+  generativeMediaLoading.value = true
   GenerateImage(req).then(res => {
-    if (!currentWorkspace.value.image_packs) {
-      currentWorkspace.value.image_packs = []
-    }
-    currentWorkspace.value.image_packs.push(res)
+    insertAsDataReference('image', res)
   }).catch(err => {
     swal.error(err)
   }).finally(() => {
-    generativeImageLoading.value = false
+    generativeMediaLoading.value = false
+  })
+}
+
+function generateMusic(req: GenerativeMusic) {
+  generativeMediaLoading.value = true
+  GenerateMusic(req).then(res => {
+    insertAsDataReference('music', res)
+  }).catch(err => {
+    swal.error(err)
+  }).finally(() => {
+    generativeMediaLoading.value = false
   })
 }
 
@@ -344,6 +389,13 @@ let additionalOptionPreview = computed(() => {
       '; No Search: ' + currentWorkspace.value.no_search +
       '; Use Classic: ' + currentWorkspace.value.use_classic
 })
+let pluginDialog = ref(false)
+let pluginList = [
+  {
+    name: 'Suno',
+    description: 'Music creator. Generating audios, videos and cover images for music.'
+  }
+]
 
 function generateTitle() {
   let workspace = currentWorkspace.value
@@ -359,7 +411,7 @@ function generateTitle() {
       '- Use the same langauge as the user\'s message.\n' +
       '- Write just the title and nothing else. No introduction to yourself. No explanation. Just the title.\n'
   let xContext = fromChatMessages(toChatMessages(workspace.context)
-      .filter(v => !(v.role === 'system' && v.type === 'additional_instructions')))
+      .filter(v => !v.type.includes('instructions')))
   let req: ConciseAnswerReq
   if (workspace.backend === 'Sydney') {
     req = {
@@ -377,7 +429,7 @@ function generateTitle() {
   GetConciseAnswer(req).then(title => {
     workspace.title = title
         .replace(/^#/, '')
-        .replace(/<\/?x-text>/g,'').trim()
+        .replace(/<\/?x-text>/g, '').trim()
   }).catch(err => {
     console.log(err)
   })
@@ -428,6 +480,33 @@ function generateTitle() {
                           color="primary"></v-switch>
               </template>
             </v-tooltip>
+            <v-tooltip text="Plugins" location="bottom">
+              <template #activator="{props}">
+                <v-btn v-bind="props" @click="pluginDialog=true" icon variant="text" color="primary">
+                  <v-icon>mdi-toy-brick</v-icon>
+                </v-btn>
+              </template>
+            </v-tooltip>
+            <v-dialog max-width="300" v-model="pluginDialog">
+              <v-card title="Plugins">
+                <v-card-text>
+                  <div v-for="plugin in pluginList">
+                    <v-checkbox :value="plugin.name" density="compact" :label="plugin.name"
+                                v-model="currentWorkspace.plugins">
+                      <template #details>
+                        <div style="width: 100%">
+                          <p>{{ plugin.description }}</p>
+                        </div>
+                      </template>
+                    </v-checkbox>
+                  </div>
+                </v-card-text>
+                <v-card-actions>
+                  <v-spacer></v-spacer>
+                  <v-btn variant="text" color="primary" @click="pluginDialog=false">Done</v-btn>
+                </v-card-actions>
+              </v-card>
+            </v-dialog>
             <v-tooltip :text="additionalOptionPreview" location="bottom">
               <template #activator="{props}">
                 <v-btn @click="additionalOptionsDialog=true" v-bind="props" icon variant="text" color="primary">
@@ -486,7 +565,6 @@ function generateTitle() {
         <v-tabs v-model="chatContextTabIndex" density="compact" color="primary" class="mb-1 flex-shrink-0">
           <v-tab :value="0">Plain</v-tab>
           <v-tab :value="1">Rich</v-tab>
-          <v-tab :value="3">Image</v-tab>
         </v-tabs>
         <div class="flex-grow-1" style="min-height: 0;position: relative"><!-- This is to enable the scroll bar -->
           <v-window v-model="chatContextTabIndex" class="fill-height">
@@ -495,12 +573,9 @@ function generateTitle() {
                         v-model="currentWorkspace.context"></textarea>
             </v-window-item>
             <v-window-item :value="1" class="fill-height">
-              <rich-chat-context :lock-scroll="lockScroll" :custom-font-style="customFontStyle"
+              <rich-chat-context :data-references="currentWorkspace.data_references" :lock-scroll="lockScroll"
+                                 :custom-font-style="customFontStyle"
                                  :context="currentWorkspace.context"></rich-chat-context>
-            </v-window-item>
-            <v-window-item :value="3" class="fill-height">
-              <generative-image-window :custom-font-style="customFontStyle"
-                                       v-model:image-packs="currentWorkspace.image_packs"></generative-image-window>
             </v-window-item>
           </v-window>
           <v-tooltip :text="lockScroll?'Enable Auto Scrolling':'Disable Auto Scrolling'" location="top">
@@ -515,10 +590,10 @@ function generateTitle() {
               </v-scale-transition>
             </template>
           </v-tooltip>
-          <v-tooltip text="There are images generating..." location="top">
+          <v-tooltip text="There are media generating..." location="top">
             <template #activator="{props}">
               <v-scale-transition>
-                <v-btn v-bind="props" icon v-if="generativeImageLoading"
+                <v-btn v-bind="props" icon v-if="generativeMediaLoading"
                        style="position:absolute;left: 25px;bottom: 25px;" color="primary">
                   <img class="loading-icon"/>
                 </v-btn>
@@ -537,7 +612,8 @@ function generateTitle() {
         <div class="my-1 d-flex">
           <p class="font-weight-bold">Follow-up User Input:</p>
           <v-spacer></v-spacer>
-          <upload-image-button :is-asking="isAsking" v-model="uploadedImage"></upload-image-button>
+          <upload-panel-button :is-asking="isAsking" v-model="uploadedImage" type="image"></upload-panel-button>
+          <upload-panel-button :is-asking="isAsking" v-model="selectedUploadFile" type="file"></upload-panel-button>
           <upload-document-button :is-asking="isAsking"
                                   @append-block-to-current-workspace="appendBlockToCurrentWorkspace"
           ></upload-document-button>

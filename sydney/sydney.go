@@ -26,6 +26,7 @@ type Sydney struct {
 	headers             func() map[string]string
 	cookies             map[string]string
 	gptID               string
+	plugins             []ArgumentPlugin
 }
 
 func NewSydney(options Options) *Sydney {
@@ -39,8 +40,7 @@ func NewSydney(options Options) *Sydney {
 	}
 	optionsSet := []string{
 		"fluxcopilot",
-		// no jailbreak filter
-		"nojbf",
+		"nojbf", // no jailbreak filter
 		"iyxapbing",
 		"iycapbing",
 		"dgencontentv3",
@@ -48,15 +48,17 @@ func NewSydney(options Options) *Sydney {
 		"disable_telemetry",
 		"machine_affinity",
 		"streamf",
-		// code interpreter
-		"codeint",
 		"langdtwb",
 		"fdwtlst",
 		"fluxprod",
 		"eredirecturl",
-		// may related to image search
-		"gptvnodesc",
-		"gptvnoex",
+		"gptvnodesc",  // may related to image search
+		"gptvnoex",    // may related to image search
+		"codeintfile", // code interpreter + file uploader
+		"sdretrieval", // retrieve upload file
+		"gamaxinvoc",  // file reader invocation
+		"ldsummary",   // our guess: long document summary
+		"ldqa",        // our guess: long document quality assurance
 	}
 	forwardedIP := "1.0.0." + strconv.Itoa(util.RandIntInclusive(1, 255))
 	cookies := util.Ternary(options.Cookies == nil, map[string]string{}, options.Cookies)
@@ -81,7 +83,7 @@ func NewSydney(options Options) *Sydney {
 			"fallback-to", "Creative")
 		options.ConversationStyle = "Creative"
 	}
-	if options.NoSearch {
+	if options.NoSearch && len(options.Plugins) == 0 {
 		optionsSet = append(optionsSet, "nosearchall")
 	}
 	if options.GPT4Turbo && !options.UseClassic {
@@ -89,6 +91,18 @@ func NewSydney(options Options) *Sydney {
 	}
 	if debugOptionSets := util.ReadDebugOptionSets(); len(debugOptionSets) != 0 {
 		optionsSet = debugOptionSets
+	}
+	var plugins []ArgumentPlugin
+	for _, pluginName := range options.Plugins {
+		plugin, ok := lo.Find(PluginList, func(item Plugin) bool {
+			return item.Name == pluginName
+		})
+		if !ok {
+			slog.Warn("Plugin not found", "name", pluginName)
+			continue
+		}
+		optionsSet = append(optionsSet, plugin.OptionsSets...)
+		plugins = append(plugins, plugin.ArgumentPlugin)
 	}
 	slog.Info("Final conversation options", "options", optionsSet, "tone", options.ConversationStyle)
 	return &Sydney{
@@ -165,5 +179,6 @@ func NewSydney(options Options) *Sydney {
 		},
 		cookies: cookies,
 		gptID:   gptID,
+		plugins: plugins,
 	}
 }

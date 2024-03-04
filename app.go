@@ -137,6 +137,22 @@ func (a *App) UploadSydneyImage() (UploadSydneyImageResult, error) {
 		BingURL:   url,
 	}, err
 }
+func (a *App) SelectUploadFile() (string, error) {
+	filePattern := strings.Join(lo.Map(sydney.BingAllowedFileExtensions, func(item string, index int) string {
+		return "*." + item
+	}), ";")
+	file, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Open file to upload",
+		Filters: []runtime.FileFilter{{
+			DisplayName: "Custom Files (" + filePattern + ")",
+			Pattern:     filePattern,
+		}},
+	})
+	if err != nil {
+		return "", err
+	}
+	return file, nil
+}
 
 type UploadSydneyDocumentResult struct {
 	Canceled bool   `json:"canceled,omitempty"`
@@ -292,6 +308,14 @@ func (a *App) GenerateImage(generativeImage sydney.GenerativeImage) (sydney.Gene
 	}
 	return syd.GenerateImage(generativeImage)
 }
+func (a *App) GenerateMusic(generativeMusic sydney.GenerativeMusic) (sydney.GenerateMusicResult, error) {
+	var empty sydney.GenerateMusicResult
+	syd, err := a.createSydney()
+	if err != nil {
+		return empty, err
+	}
+	return syd.GenerateMusic(generativeMusic)
+}
 func (a *App) SaveRemoteJPEGImage(url string) error {
 	if strings.Contains(url, "?") {
 		url = strings.Split(url, "?")[0]
@@ -321,6 +345,36 @@ func (a *App) SaveRemoteJPEGImage(url string) error {
 	}
 	if !strings.HasSuffix(filePath, ".jpg") && !strings.HasSuffix(filePath, ".jpeg") {
 		filePath += ".jpg"
+	}
+	return os.WriteFile(filePath, resp.Bytes(), 0644)
+}
+func (a *App) SaveRemoteFile(extWithoutDot, defaultFilenameWithoutExt, url string) error {
+	filePath, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title: "Choose a destination to save the file",
+		Filters: []runtime.FileFilter{{
+			DisplayName: "*." + extWithoutDot,
+			Pattern:     "*." + extWithoutDot,
+		}},
+		DefaultFilename: lo.Ternary(defaultFilenameWithoutExt != "", defaultFilenameWithoutExt, "file") +
+			"." + extWithoutDot,
+		CanCreateDirectories: true,
+	})
+	if err != nil {
+		return err
+	}
+	if filePath == "" { // cancelled
+		return nil
+	}
+	_, client, err := util.MakeHTTPClient(a.settings.config.Proxy, 60*time.Second)
+	if err != nil {
+		return err
+	}
+	resp, err := client.R().Get(url)
+	if err != nil {
+		return err
+	}
+	if !strings.HasSuffix(filePath, "."+extWithoutDot) {
+		filePath += "." + extWithoutDot
 	}
 	return os.WriteFile(filePath, resp.Bytes(), 0644)
 }
