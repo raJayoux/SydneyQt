@@ -6,7 +6,7 @@
 
 [![SydneyQt - A desktop client for the jailbroken New Bing AI | Product Hunt](https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=438079&theme=light)](https://www.producthunt.com/posts/sydneyqt?utm_source=badge-featured&utm_medium=badge&utm_souce=badge-sydneyqt)
 
-A cross-platform desktop client for the jailbroken New Bing AI (Sydney ver.) built with Go and [Wails](https://github.com/wailsapp/wails) ([previously](https://github.com/juzeon/SydneyQt/tree/v1) based on Python and Qt).
+A cross-platform desktop client for the jailbroken New Bing AI Copilot (Sydney ver.) built with Go and [Wails](https://github.com/wailsapp/wails) ([previously](https://github.com/juzeon/SydneyQt/tree/v1) based on Python and Qt).
 
 [简体中文](README_zh.md)
 
@@ -23,6 +23,7 @@ A cross-platform desktop client for the jailbroken New Bing AI (Sydney ver.) bui
 - Display the rich or plain text of the chat context, supporting LaTeX formulas, tables, codes, etc.
 - Chat with webpages you browse.
 - Chat with files you upload (including pdf, docx, pptx, xlsx, and other plain text files / code files).
+- Youtube videos summarizing.
 - GPT-4 with vision that supports image search.
 - Generate images using the latest DALL·E 3 model.
 - Generate music audio and video using Bing's Suno model.

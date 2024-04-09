@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"log"
+	"log/slog"
 	"sydneyqt/util"
 	"testing"
 )
@@ -31,6 +32,7 @@ func TestSydney(t *testing.T) {
 	})
 	a.Nil(err)
 	for msg := range ch {
+		slog.Info(msg.Data)
 		a.Nil(msg.Error)
 	}
 	log.Println("Stage 2")
@@ -42,6 +44,7 @@ func TestSydney(t *testing.T) {
 	})
 	a.Nil(err)
 	for msg := range ch {
+		slog.Info(msg.Data)
 		a.Nil(msg.Error)
 	}
 	log.Println("Stage 3")
@@ -53,6 +56,7 @@ func TestSydney(t *testing.T) {
 	})
 	a.Nil(err)
 	for msg := range ch {
+		slog.Info(msg.Data)
 		a.Nil(msg.Error)
 	}
 	log.Println("Stage 4")
@@ -64,6 +68,7 @@ func TestSydney(t *testing.T) {
 	})
 	a.Nil(err)
 	for msg := range ch {
+		slog.Info(msg.Data)
 		a.Nil(msg.Error)
 	}
 }

@@ -78,6 +78,7 @@ export namespace main {
 	    sydney_preset_20240304: boolean;
 	    theme_color_20240304: boolean;
 	    quick_20240326: boolean;
+	    quick_20240405: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Migration(source);
@@ -88,6 +89,7 @@ export namespace main {
 	        this.sydney_preset_20240304 = source["sydney_preset_20240304"];
 	        this.theme_color_20240304 = source["theme_color_20240304"];
 	        this.quick_20240326 = source["quick_20240326"];
+	        this.quick_20240405 = source["quick_20240405"];
 	    }
 	}
 	export class OpenAIBackend {
@@ -337,6 +339,61 @@ export namespace main {
 	        this.canceled = source["canceled"];
 	    }
 	}
+	
+	export class YoutubeVideoDetails {
+	    title: string;
+	    length_seconds: string;
+	    description: string;
+	    keywords: string[];
+	    pic_url: string;
+	    author: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new YoutubeVideoDetails(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.title = source["title"];
+	        this.length_seconds = source["length_seconds"];
+	        this.description = source["description"];
+	        this.keywords = source["keywords"];
+	        this.pic_url = source["pic_url"];
+	        this.author = source["author"];
+	    }
+	}
+	export class YoutubeVideoResult {
+	    details: YoutubeVideoDetails;
+	    captions: util.YtCustomCaption[];
+	
+	    static createFrom(source: any = {}) {
+	        return new YoutubeVideoResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.details = this.convertValues(source["details"], YoutubeVideoDetails);
+	        this.captions = this.convertValues(source["captions"], util.YtCustomCaption);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 
 }
 
@@ -420,6 +477,47 @@ export namespace sydney {
 	        this.iframeid = source["iframeid"];
 	        this.requestid = source["requestid"];
 	        this.text = source["text"];
+	    }
+	}
+
+}
+
+export namespace util {
+	
+	export class YtCustomCaption {
+	    name: string;
+	    language_code: string;
+	    url: string;
+	    is_asr: boolean;
+	    is_translated: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new YtCustomCaption(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.language_code = source["language_code"];
+	        this.url = source["url"];
+	        this.is_asr = source["is_asr"];
+	        this.is_translated = source["is_translated"];
+	    }
+	}
+	export class YtTranscriptText {
+	    start: number;
+	    dur: number;
+	    value: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new YtTranscriptText(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.start = source["start"];
+	        this.dur = source["dur"];
+	        this.value = source["value"];
 	    }
 	}
 

@@ -42,6 +42,14 @@ export function GetUser() {
   return window['go']['main']['App']['GetUser']();
 }
 
+export function GetYoutubeTranscript(arg1) {
+  return window['go']['main']['App']['GetYoutubeTranscript'](arg1);
+}
+
+export function GetYoutubeVideo(arg1) {
+  return window['go']['main']['App']['GetYoutubeVideo'](arg1);
+}
+
 export function SaveRemoteFile(arg1, arg2, arg3) {
   return window['go']['main']['App']['SaveRemoteFile'](arg1, arg2, arg3);
 }

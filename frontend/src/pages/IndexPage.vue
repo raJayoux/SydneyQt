@@ -17,6 +17,7 @@ import UploadPanelButton from "../components/index/UploadPanelButton.vue"
 import UploadDocumentButton from "../components/index/UploadDocumentButton.vue"
 import FetchWebpageButton from "../components/index/FetchWebpageButton.vue"
 import RevokeButton from "../components/index/RevokeButton.vue"
+import InsertVideoButton from "../components/index/InsertVideoButton.vue"
 import AskOptions = main.AskOptions
 import Workspace = main.Workspace
 import ChatFinishResult = main.ChatFinishResult
@@ -620,6 +621,7 @@ function generateTitle() {
           ></upload-document-button>
           <fetch-webpage-button :is-asking="isAsking"
                                 @append-block-to-current-workspace="appendBlockToCurrentWorkspace"></fetch-webpage-button>
+          <insert-video-button :is-asking="isAsking" @append="appendBlockToCurrentWorkspace"></insert-video-button>
           <revoke-button :is-asking="isAsking" :current-workspace="currentWorkspace"></revoke-button>
           <v-menu>
             <template #activator="{props}">

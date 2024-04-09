@@ -479,3 +479,49 @@ func (a *App) ShareWorkspace(id int) error {
 	err = util.OpenURL("https://sharegpt.com/c/" + response.ID)
 	return nil
 }
+
+type YoutubeVideoResult struct {
+	Details  YoutubeVideoDetails    `json:"details"`
+	Captions []util.YtCustomCaption `json:"captions"`
+}
+type YoutubeVideoDetails struct {
+	Title         string   `json:"title"`
+	LengthSeconds string   `json:"length_seconds"`
+	Description   string   `json:"description"`
+	Keywords      []string `json:"keywords"`
+	PicURL        string   `json:"pic_url"`
+	Author        string   `json:"author"`
+}
+
+func (a *App) GetYoutubeVideo(url string) (YoutubeVideoResult, error) {
+	var result YoutubeVideoResult
+	yt, err := util.NewYoutube(url, a.settings.config.Proxy)
+	if err != nil {
+		return result, err
+	}
+	vd, err := yt.GetVideoDetails()
+	if err != nil {
+		return result, err
+	}
+	cp, err := yt.GetCaptions()
+	if err != nil {
+		return result, err
+	}
+	th, _ := lo.Last(vd.Thumbnail.Thumbnails)
+	result = YoutubeVideoResult{
+		Details: YoutubeVideoDetails{
+			Title:         vd.Title,
+			LengthSeconds: vd.LengthSeconds,
+			Description:   vd.ShortDescription,
+			Keywords:      vd.Keywords,
+			PicURL:        th.Url,
+			Author:        vd.Author,
+		},
+		Captions: cp,
+	}
+	return result, nil
+}
+
+func (a *App) GetYoutubeTranscript(caption util.YtCustomCaption) ([]util.YtTranscriptText, error) {
+	return caption.GetTranscript(a.settings.config.Proxy)
+}

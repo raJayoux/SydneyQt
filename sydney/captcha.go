@@ -137,6 +137,7 @@ func (o *Sydney) postprocessCaptchaCookies(modifiedCookies map[string]string) er
 	if _, ok := modifiedCookies["cct"]; !ok {
 		return errors.New("captcha cookies not valid: no cookie named cct found")
 	}
+	slog.Info("postprocessCaptchaCookies", "cookies", modifiedCookies)
 	o.UpdateModifiedCookies(modifiedCookies)
 	return nil
 }

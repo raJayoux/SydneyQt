@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@mdi/font": "^7.3.67",
+    "@sweetalert2/theme-material-ui": "^5.0.16",
     "@types/katex": "^0.16.7",
     "dayjs": "^1.11.10",
     "katex": "^0.16.9",

@@ -1,4 +1,5 @@
 import Swal, {SweetAlertResult} from 'sweetalert2'
+import '@sweetalert2/theme-material-ui/material-ui.min.css'
 import {generate} from "random-words"
 
 export interface ISwal {

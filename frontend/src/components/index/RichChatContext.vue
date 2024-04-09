@@ -41,7 +41,7 @@ function renderMD(content: string) {
       math_expressions[id] = {type: 'block', expression}
       return id
     })
-    text = text.replace(/\$([^\n\s]+?)\$/g, (_match, expression) => {
+    text = text.replace(/\$([^\n]+?)\$/g, (_match, expression) => {
       const id = next_id()
       math_expressions[id] = {type: 'inline', expression}
       return id

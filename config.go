@@ -81,6 +81,7 @@ type Migration struct {
 	SydneyPreset20240304 bool `json:"sydney_preset_20240304"`
 	ThemeColor20240304   bool `json:"theme_color_20240304"`
 	Quick20240326        bool `json:"quick_20240326"`
+	Quick20240405        bool `json:"quick_20240405"`
 }
 
 func fillDefault[T comparable](pointer *T, defaultValue T) {
@@ -126,6 +127,15 @@ func (o *Config) DoMigration() {
 		}
 		o.Migration.Quick20240326 = true
 	}
+	if !o.Migration.Quick20240405 {
+		_, ok := lo.Find(o.Quick, func(item string) bool {
+			return item == "Summarize the video from Youtube according to the given information."
+		})
+		if !ok {
+			o.Quick = append(o.Quick, "Summarize the video from Youtube according to the given information.")
+		}
+		o.Migration.Quick20240405 = true
+	}
 }
 func (o *Config) FillDefault() {
 	if len(o.Presets) == 0 {
@@ -151,6 +161,7 @@ func (o *Config) FillDefault() {
 			"Fix grammar errors and polish the writing of the text above.",
 			"Translate the text above into Chinese in a fluent way.",
 			"Continue the conversation in context. Assistant:",
+			"Summarize the video from Youtube according to the given information.",
 			"[user](#message)"}
 	}
 	if len(o.OpenAIBackends) == 0 {

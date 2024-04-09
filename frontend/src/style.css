@@ -30,3 +30,7 @@ body::-webkit-scrollbar {
 img.loading-icon {
     content: url("assets/images/90-ring-with-bg.svg");
 }
+
+.swal2-container {
+    z-index: 114514;
+}

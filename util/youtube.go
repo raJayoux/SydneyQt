@@ -5,26 +5,43 @@ import (
 	"encoding/xml"
 	"errors"
 	"github.com/imroc/req/v3"
-	"github.com/samber/lo"
+	"github.com/tidwall/gjson"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
 type Youtube struct {
-	VideoID  string
-	client   *req.Client
-	htmlPage string
+	VideoID    string
+	client     *req.Client
+	jsonResult gjson.Result
 }
 
+var ErrNoYtCaptions = errors.New("cannot find youtube captions")
+
 func NewYoutube(url string, proxy string) (*Youtube, error) {
-	arr := regexp.MustCompile("v=([^&]+)").FindStringSubmatch(url)
-	if len(arr) == 0 {
-		return nil, errors.New("invalid youtube video url: " + url)
-	}
 	_, client, err := MakeHTTPClient(proxy, 15*time.Second)
 	if err != nil {
 		return nil, err
+	}
+	client.SetRedirectPolicy(req.NoRedirectPolicy())
+	if strings.HasPrefix(url, "https://youtu.be") {
+		resp, err := client.R().Head(url)
+		if err != nil {
+			return nil, err
+		}
+		if resp.IsErrorState() {
+			return nil, errors.New("cannot head " + url + ", status: " + strconv.Itoa(resp.GetStatusCode()))
+		}
+		url = resp.GetHeader("location")
+	}
+	if !strings.HasPrefix(url, "https://www.youtube.com") {
+		return nil, errors.New("not a valid youtube link: " + url)
+	}
+	arr := regexp.MustCompile("v=([^&]+)").FindStringSubmatch(url)
+	if len(arr) == 0 {
+		return nil, errors.New("invalid youtube video url: " + url)
 	}
 	resp, err := client.R().Get("https://www.youtube.com/watch?v=" + arr[1])
 	if err != nil {
@@ -33,39 +50,54 @@ func NewYoutube(url string, proxy string) (*Youtube, error) {
 	if resp.IsErrorState() {
 		return nil, errors.New("cannot fetch youtube url: " + strconv.Itoa(resp.GetStatusCode()))
 	}
+	arr = regexp.MustCompile("var ytInitialPlayerResponse = (.*?);var meta =").FindStringSubmatch(resp.String())
+	if !gjson.Valid(arr[1]) {
+		return nil, errors.New("cannot find ytInitialPlayerResponse from html")
+	}
 	return &Youtube{
-		VideoID:  arr[1],
-		client:   client,
-		htmlPage: resp.String(),
+		VideoID:    arr[1],
+		client:     client,
+		jsonResult: gjson.Parse(arr[1]),
 	}, nil
 }
 func (o *Youtube) GetVideoDetails() (YtVideoDetails, error) {
 	var result YtVideoDetails
-	arr := regexp.MustCompile("\"videoDetails\":(.*?),\"playerConfig\":").FindStringSubmatch(o.htmlPage)
-	if len(arr) == 0 {
-		return result, errors.New("cannot find video details")
+	if !o.jsonResult.Get("videoDetails").Exists() {
+		return result, errors.New("cannot find videoDetails")
 	}
-	err := json.Unmarshal([]byte(arr[1]), &result)
+	err := json.Unmarshal([]byte(o.jsonResult.Get("videoDetails").Raw), &result)
 	if err != nil {
 		return result, err
 	}
 	return result, nil
 }
-func (o *Youtube) GetCaptions() (YtCaptions, error) {
+func (o *Youtube) GetCaptions() ([]YtCustomCaption, error) {
 	var result YtCaptions
-	arr := regexp.MustCompile("\"captions\":(.*?),\"videoDetails\":").FindStringSubmatch(o.htmlPage)
-	if len(arr) == 0 {
-		return result, errors.New("cannot find captions")
+	if !o.jsonResult.Get("captions").Exists() {
+		return nil, ErrNoYtCaptions
 	}
-	err := json.Unmarshal([]byte(arr[1]), &result)
+	err := json.Unmarshal([]byte(o.jsonResult.Get("captions").Raw), &result)
 	if err != nil {
-		return result, err
+		return nil, err
 	}
-	return result, nil
+	return result.GetCustomCaptions(), nil
 }
-func (o *Youtube) GetTranscript(baseURL string, targetLang string) ([]YtTranscriptText, error) {
-	url := baseURL + lo.Ternary(targetLang != "", "&tlang="+targetLang, "")
-	resp, err := o.client.R().Get(url)
+
+type YtCustomCaption struct {
+	Name         string `json:"name"`
+	LanguageCode string `json:"language_code"`
+	URL          string `json:"url"`
+	IsAsr        bool   `json:"is_asr"`
+	IsTranslated bool   `json:"is_translated"`
+}
+
+func (c YtCustomCaption) GetTranscript(proxy string) ([]YtTranscriptText, error) {
+	url := c.URL
+	_, client, err := MakeHTTPClient(proxy, 15*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.R().Get(url)
 	if err != nil {
 		return nil, err
 	}
@@ -83,6 +115,38 @@ func (o *Youtube) GetTranscript(baseURL string, targetLang string) ([]YtTranscri
 type YtCaptions struct {
 	PlayerCaptionsTracklistRenderer YtPlayerCaptionsTracklistRenderer `json:"playerCaptionsTracklistRenderer"`
 }
+
+func (y YtCaptions) GetCustomCaptions() []YtCustomCaption {
+	var captions []YtCustomCaption
+	var firstCaption *YtCustomCaption
+	for ix, c := range y.PlayerCaptionsTracklistRenderer.CaptionTracks {
+		caption := YtCustomCaption{
+			Name:         c.Name.SimpleText,
+			LanguageCode: c.LanguageCode,
+			URL:          c.BaseUrl,
+			IsAsr:        c.Kind == "asr",
+			IsTranslated: false,
+		}
+		captions = append(captions, caption)
+		if ix == 0 {
+			firstCaption = &caption
+		}
+	}
+	if firstCaption == nil || !y.PlayerCaptionsTracklistRenderer.CaptionTracks[0].IsTranslatable {
+		return captions
+	}
+	for _, t := range y.PlayerCaptionsTracklistRenderer.TranslationLanguages {
+		captions = append(captions, YtCustomCaption{
+			Name:         t.LanguageName.SimpleText,
+			LanguageCode: t.LanguageCode,
+			URL:          firstCaption.URL + "&tlang=" + t.LanguageCode,
+			IsAsr:        false,
+			IsTranslated: true,
+		})
+	}
+	return captions
+}
+
 type YtPlayerCaptionsTracklistRenderer struct {
 	CaptionTracks          []YtCaptionTrack        `json:"captionTracks"`
 	AudioTracks            []YtAudioTrack          `json:"audioTracks"`
@@ -141,7 +205,7 @@ type YtTranscript struct {
 	Texts   []YtTranscriptText `xml:"text"`
 }
 type YtTranscriptText struct {
-	Start float64 `xml:"start,attr"`
-	Dur   float64 `xml:"dur,attr"`
-	Value string  `xml:",chardata"`
+	Start float64 `xml:"start,attr" json:"start"`
+	Dur   float64 `xml:"dur,attr" json:"dur"`
+	Value string  `xml:",chardata" json:"value"`
 }
